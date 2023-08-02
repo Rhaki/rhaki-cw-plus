@@ -1,4 +1,6 @@
-use cosmwasm_std::{Coin, StdError, StdResult};
+use std::collections::HashMap;
+
+use cosmwasm_std::{Coin, StdError, StdResult, Uint128};
 
 /// Check if `coins` has a `len() == 1`.
 /// If a `denom` is specified, assert them.
@@ -46,4 +48,21 @@ pub fn merge_coin(from: &Option<Coin>, with: &Option<Coin>) -> StdResult<Option<
         },
         None => Ok(with.to_owned()),
     }
+}
+
+/// Transform a `Vec<Coin>` into `HashMap<String, Uint128>`
+pub fn vec_coins_to_hashmap(coins: Vec<Coin>) -> StdResult<HashMap<String, Uint128>> {
+    let mut map: HashMap<String, Uint128> = HashMap::new();
+
+    for coin in coins {
+        if map.contains_key(&coin.denom) {
+            return Err(StdError::generic_err(format!(
+                "multiple denom detected, {}",
+                &coin.denom
+            )));
+        }
+        map.insert(coin.denom, coin.amount);
+    }
+
+    Ok(map)
 }
