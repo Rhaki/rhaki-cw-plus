@@ -1,6 +1,7 @@
 use crate::encdec;
 use cosmwasm_std::{StdError, StdResult};
 pub use serde_cw_value::Value;
+pub use serde_json_wasm::from_str as sjw_from_str;
 
 /// `Serialize` a `serde_cw_value::Value` to `String`
 pub fn value_to_string(value: &Value) -> StdResult<String> {
