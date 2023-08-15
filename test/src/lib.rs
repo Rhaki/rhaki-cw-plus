@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod test_map;
+mod test_storage;
 
 #[cfg(test)]
 mod test_coin;
