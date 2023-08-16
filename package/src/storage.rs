@@ -40,7 +40,7 @@ pub mod multi_index {
     /// Return `(main_key, value)`
     ///
     /// ## Example:
-    /// ```
+    /// ```ignore
     /// #[cw_serde]
     /// pub struct ChainInfo{
     ///     pub src_channel: String,
