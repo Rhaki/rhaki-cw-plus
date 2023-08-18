@@ -88,6 +88,8 @@ mod map {
                 (87, "87".to_string()),
             ]
         );
+
+
     }
 }
 mod test_multi_index {
@@ -133,7 +135,7 @@ mod test_multi_index {
     }
 
     #[test]
-    fn test() {
+    fn main() {
         let mut deps = mock_dependencies();
         CHAINS()
             .save(
@@ -351,5 +353,26 @@ mod test_multi_index {
                 }
             )]
         );
+        
+    }
+}
+
+mod general{
+    use rhaki_cw_plus::storage::vec_tuple_to_hashmap;
+
+
+    #[test]
+    fn main() {
+        let mut vec = vec![
+            ("first".to_string(), 1_u128),
+            ("second".to_string(), 2_u128),
+            ("third".to_string(), 3_u128)
+        ];
+
+        vec_tuple_to_hashmap(vec.clone()).unwrap();
+
+        vec.push(("third".to_string(), 3_u128));
+
+        vec_tuple_to_hashmap(vec.clone()).unwrap_err();
     }
 }

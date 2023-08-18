@@ -9,3 +9,6 @@ mod test_auth;
 
 #[cfg(test)]
 mod test_serde;
+
+#[cfg(test)]
+mod test_test;

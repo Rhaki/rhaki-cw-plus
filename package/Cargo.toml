@@ -1,6 +1,6 @@
 [package]
 name            = "rhaki-cw-plus"
-version         = "0.3.1"
+version         = "0.3.2"
 edition         = "2021"
 license         = "Apache-2.0"
 authors         = ["Rhaki"]
@@ -15,3 +15,4 @@ serde-cw-value  = { version = "0.7.0"   }
 serde-json-wasm = { version = "0.5.1"   } 
 base64          = { version = "0.21.2"  }
 serde_json      = { version = "1.0.104" }
+cw-multi-test   = { version = "0.16.5"  }
