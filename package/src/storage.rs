@@ -108,7 +108,9 @@ pub mod multi_index {
     }
 }
 
-pub fn vec_tuple_to_hashmap<K: Eq + Hash + Debug + Clone, V>(vec: Vec<(K, V)>) -> StdResult<HashMap<K, V>> {
+pub fn vec_tuple_to_hashmap<K: Eq + Hash + Debug + Clone, V>(
+    vec: Vec<(K, V)>,
+) -> StdResult<HashMap<K, V>> {
     let mut map: HashMap<K, V> = HashMap::new();
 
     for (k, v) in vec {

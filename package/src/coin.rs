@@ -66,4 +66,3 @@ pub fn vec_coins_to_hashmap(coins: Vec<Coin>) -> StdResult<HashMap<String, Uint1
 
     Ok(map)
 }
-
