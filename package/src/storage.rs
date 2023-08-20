@@ -1,4 +1,4 @@
-use std::{cmp::min, collections::HashMap, fmt::Debug, hash::Hash};
+use std::{cmp::min, fmt::Debug};
 
 use cosmwasm_schema::serde::{de::DeserializeOwned, Serialize};
 use cosmwasm_std::{Order, StdError, StdResult, Storage};
@@ -106,20 +106,6 @@ pub mod multi_index {
             .map(|item| item.unwrap())
             .collect())
     }
-}
-
-pub fn vec_tuple_to_hashmap<K: Eq + Hash + Debug + Clone, V>(
-    vec: Vec<(K, V)>,
-) -> StdResult<HashMap<K, V>> {
-    let mut map: HashMap<K, V> = HashMap::new();
-
-    for (k, v) in vec {
-        if map.insert(k.clone(), v).is_some() {
-            return Err(StdError::generic_err(format!("key alredy inserted, {k:?}")));
-        };
-    }
-
-    Ok(map)
 }
 
 fn min_max_from_order<'a, PK: PrimaryKey<'a> + KeyDeserialize + 'static>(

@@ -12,3 +12,6 @@ mod test_serde;
 
 #[cfg(test)]
 mod test_test;
+
+#[cfg(test)]
+mod test_utils;

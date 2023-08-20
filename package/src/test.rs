@@ -4,11 +4,11 @@ use cosmwasm_std::{Addr, Attribute, Coin, StdError, StdResult, Uint128};
 use cw_multi_test::{App, AppBuilder, AppResponse, Executor};
 
 /// Create a `cw_mutli_test::App` with starting balances
-pub fn mock_app(users: Vec<(&str, Vec<Coin>)>) -> App {
-    if !users.is_empty() {
+pub fn mock_app(users_balance: Vec<(&str, Vec<Coin>)>) -> App {
+    if !users_balance.is_empty() {
         let mut map: HashMap<String, Uint128> = HashMap::new();
 
-        for (_, coins) in users.clone() {
+        for (_, coins) in users_balance.clone() {
             for coin in coins {
                 match map.get_mut(&coin.denom) {
                     Some(amount) => {
@@ -26,7 +26,7 @@ pub fn mock_app(users: Vec<(&str, Vec<Coin>)>) -> App {
             .map(|(k, v)| Coin::new(v.into(), k))
             .collect();
 
-        let first_user = users.first().unwrap().0;
+        let first_user = users_balance.first().unwrap().0;
 
         let mut app = AppBuilder::new().build(|router, _, storage| {
             router
@@ -35,7 +35,7 @@ pub fn mock_app(users: Vec<(&str, Vec<Coin>)>) -> App {
                 .unwrap()
         });
 
-        for (user, coins) in users {
+        for (user, coins) in users_balance {
             if user != first_user {
                 app.send_tokens(Addr::unchecked(first_user), Addr::unchecked(user), &coins)
                     .unwrap();
