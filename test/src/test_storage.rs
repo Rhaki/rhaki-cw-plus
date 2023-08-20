@@ -93,8 +93,7 @@ mod map {
 mod test_multi_index {
     use cosmwasm_schema::cw_serde;
     use cosmwasm_std::{testing::mock_dependencies, Order};
-    use cw_storage_macro::index_list;
-    use cw_storage_plus::{IndexedMap, MultiIndex, UniqueIndex};
+    use cw_storage_plus::{IndexedMap, MultiIndex, UniqueIndex, index_list};
     use rhaki_cw_plus::storage::multi_index::{get_multi_index_values, get_unique_value};
 
     #[cw_serde]

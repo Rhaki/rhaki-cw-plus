@@ -1,7 +1,9 @@
 use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
 use crate::encdec::{self, base64_encode};
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{CosmosMsg, StdError, StdResult};
+use serde::Deserialize;
 pub use serde_cw_value::Value;
 pub use serde_json::json;
 use serde_json::Value as StdValue;
@@ -33,8 +35,9 @@ pub fn value_to_b64_string(value: &Value) -> StdResult<String> {
 }
 
 /// Parse a `serde_json::Value` into `serde_json_wasm::Value`
-pub fn std_to_sjw_value(std_value: StdValue) -> Value {
-    sjw_from_str(&std_value.to_string()).unwrap()
+pub fn std_to_sjw_value(std_value: StdValue) -> StdResult<Value> {
+    sjw_from_str::<Value>(&std_value.to_string())
+        .map_err(|err| StdError::generic_err(err.to_string()))
 }
 
 /// Parse a `Value` into a CosmosMsg
@@ -42,6 +45,36 @@ pub fn value_to_comsos_msg(value: &Value) -> StdResult<CosmosMsg> {
     match value.clone().deserialize_into() {
         Ok(msg) => Ok(msg),
         Err(err) => Err(StdError::generic_err(err.to_string())),
+    }
+}
+
+pub trait SerdeValue {
+    fn from_b64(encoded_b64: impl Into<String>) -> StdResult<Value>;
+    fn from_string(string: impl Into<String>) -> StdResult<Value>;
+    fn as_string(&self) -> StdResult<String>;
+    fn to_cosmos_msg(&self) -> StdResult<CosmosMsg>;
+    fn to_b64_encoded(&self) -> StdResult<String>;
+}
+
+impl SerdeValue for Value {
+    fn from_b64(encoded_b64: impl Into<String>) -> StdResult<Value> {
+        value_from_b64(&encoded_b64.into())
+    }
+
+    fn from_string(string: impl Into<String>) -> StdResult<Value> {
+        value_from_string(&string.into())
+    }
+
+    fn as_string(&self) -> StdResult<String> {
+        value_to_string(self)
+    }
+
+    fn to_cosmos_msg(&self) -> StdResult<CosmosMsg> {
+        value_to_comsos_msg(self)
+    }
+
+    fn to_b64_encoded(&self) -> StdResult<String> {
+       value_to_b64_string(self)
     }
 }
 
@@ -85,4 +118,49 @@ where
 
         Ok(map)
     }
+}
+
+pub trait ToCwJson {
+    fn into_cw(&self) ->  StdResult<Value>;
+}
+
+impl ToCwJson for StdValue {
+    fn into_cw(&self) -> StdResult<Value> {
+        std_to_sjw_value(self.clone())
+    }
+}
+
+pub trait DoubleDeserialize {
+    fn double_deserialize<'de, F: Deserialize<'de>, S: Deserialize<'de>>(
+        &self,
+    ) -> StdResult<DoubleValueDeserializeResult<F, S>>;
+}
+
+impl DoubleDeserialize for Value {
+    fn double_deserialize<'de, F: Deserialize<'de>, S: Deserialize<'de>>(
+        &self,
+    ) -> StdResult<DoubleValueDeserializeResult<F, S>> {
+        if let Ok(res) = self.clone().deserialize_into() {
+            return Ok(DoubleValueDeserializeResult::First(res));
+        }
+
+        if let Ok(res) = self.clone().deserialize_into() {
+            return Ok(DoubleValueDeserializeResult::Second(res));
+        }
+
+        Err(StdError::generic_err("Deserialize failed"))
+    }
+}
+
+#[cw_serde]
+pub enum DoubleValueDeserializeResult<F, S> {
+    First(F),
+    Second(S),
+}
+
+impl<'de, F, S> DoubleValueDeserializeResult<F, S>
+where
+    F: Deserialize<'de>,
+    S: Deserialize<'de>,
+{
 }
