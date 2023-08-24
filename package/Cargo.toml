@@ -1,21 +1,21 @@
 [package]
-name            = "rhaki-cw-plus"
-version         = "0.4.0"
-edition         = "2021"
-license         = "Apache-2.0"
-authors         = ["Rhaki"]
-description     = "Advanced utils for cosmwasm contract"
-repository      = "https://github.com/Rhaki/rhaki-cw-plus"
+name                = "rhaki-cw-plus"
+version             = "0.4.0"
+edition             = "2021"
+license             = "Apache-2.0"
+authors             = ["Rhaki"]
+description         = "Advanced utils for cosmwasm contract"
+repository          = "https://github.com/Rhaki/rhaki-cw-plus"
 
 [dependencies]
-rhaki-cw-plus-macro = {path = "../macros"}
-cw-storage-plus = { workspace = true, features = ["macro"] }
-cosmwasm-std    = { workspace = true }
-cosmwasm-schema = { workspace = true }
-serde-cw-value  = { workspace = true }
-serde-json-wasm = { workspace = true }
-base64          = { workspace = true }
-serde_json      = { workspace = true }
-cw-multi-test   = { workspace = true }
-serde           = { workspace = true }
-schemars        = { workspace = true }
+rhaki-cw-plus-macro = {path = "../macros", version = "0.1.0" }
+cw-storage-plus     = { workspace = true, features = ["macro"] }
+cosmwasm-std        = { workspace = true }
+cosmwasm-schema     = { workspace = true }
+serde-cw-value      = { workspace = true }
+serde-json-wasm     = { workspace = true }
+base64              = { workspace = true }
+serde_json          = { workspace = true }
+cw-multi-test       = { workspace = true }
+serde               = { workspace = true }
+schemars            = { workspace = true }
