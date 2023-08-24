@@ -1,6 +1,6 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{BankMsg, Coin, CosmosMsg, StdResult};
-use rhaki_cw_plus::serde::{
+use rhaki_cw_plus::serde_value::{
     std_to_sjw_value, value_to_string, DoubleDeserialize,
     DoubleValueDeserializeResult, SerdeValue, ToCwJson,
 };

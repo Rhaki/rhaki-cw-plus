@@ -1,7 +1,15 @@
 mod map {
+    use std::collections::HashMap;
+
+    use cosmwasm_schema::cw_serde;
     use cosmwasm_std::{testing::mock_dependencies, Order};
     use cw_storage_plus::Map;
     use rhaki_cw_plus::storage::map::get_items;
+
+    #[cw_serde]
+    pub struct StructWithMap {
+        map: HashMap<String, u64>,
+    }
 
     #[test]
     fn main() {
@@ -88,12 +96,34 @@ mod map {
                 (87, "87".to_string()),
             ]
         );
+
+        let mut deps = mock_dependencies();
+
+        let map: Map<u64, StructWithMap> = Map::new("test_map");
+
+        let mut hash_map: HashMap<String, u64> = HashMap::new();
+
+        hash_map.insert("first".to_string(), 1);
+        hash_map.insert("second".to_string(), 2);
+
+        map.save(
+            deps.as_mut().storage,
+            1,
+            &StructWithMap {
+                map: hash_map.clone(),
+            },
+        )
+        .unwrap();
+
+        let load_map = map.load(deps.as_ref().storage, 1).unwrap();
+
+        assert_eq!(load_map.map, hash_map)
     }
 }
 mod test_multi_index {
     use cosmwasm_schema::cw_serde;
     use cosmwasm_std::{testing::mock_dependencies, Order};
-    use cw_storage_plus::{IndexedMap, MultiIndex, UniqueIndex, index_list};
+    use cw_storage_plus::{index_list, IndexedMap, MultiIndex, UniqueIndex};
     use rhaki_cw_plus::storage::multi_index::{get_multi_index_values, get_unique_value};
 
     #[cw_serde]

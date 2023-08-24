@@ -7,12 +7,14 @@ description     = "Test for advanced utils for cosmwasm contract"
 repository      = "https://github.com/Rhaki/rhaki-cw-plus"
 
 [dependencies]
-rhaki-cw-plus    = { path = "../package" }
-cw-storage-plus  = { workspace = true }
-cosmwasm-std     = { workspace = true }
-serde_json       = { workspace = true }
-cosmwasm-schema  = { workspace = true }
-cw-multi-test    = { workspace = true }
+rhaki-cw-plus   = { path = "../package" }
+cw-storage-plus = { workspace = true }
+cosmwasm-std    = { workspace = true }
+serde_json      = { workspace = true }
+cosmwasm-schema = { workspace = true }
+cw-multi-test   = { workspace = true }
+serde           = { workspace = true }
+
 
 
 

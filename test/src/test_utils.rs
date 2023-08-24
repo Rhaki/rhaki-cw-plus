@@ -1,6 +1,17 @@
 use std::collections::HashMap;
 
+use cosmwasm_schema::cw_serde;
+use rhaki_cw_plus::cw_serde_value;
+use rhaki_cw_plus::serde_value::Value;
 use rhaki_cw_plus::utils::{vec_to_i_hashmap, vec_tuple_to_hashmap};
+
+#[cw_serde_value]
+pub struct WithCwSerdeStruct {
+    pub val: Value,
+}
+
+#[cw_serde]
+pub struct WithoutSerdeStruct {}
 
 #[test]
 fn main() {

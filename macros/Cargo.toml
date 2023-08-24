@@ -1,0 +1,16 @@
+[package]
+name            = "rhaki-cw-plus-macro"
+version         = "0.1.0"
+edition         = "2021"
+license         = "Apache-2.0"
+authors         = ["Rhaki"]
+description     = "Advanced utils for cosmwasm contract"
+repository      = "https://github.com/Rhaki/rhaki-cw-plus"
+
+[dependencies]
+proc-macro2     = "1"
+quote           = "1"
+syn             = { version = "1", features = ["full", "printing", "extra-traits"] }
+
+[lib]
+proc-macro = true
