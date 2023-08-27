@@ -13,3 +13,4 @@ cw-multi-test   = { version = "0.16.5"  }
 serde           = { version = "1.0" }
 syn             = { version = "1", features = ["full", "printing", "extra-traits"] }
 schemars        = { version = "0.8.3"}
+forward_ref     = { version = "1.0.0" }
