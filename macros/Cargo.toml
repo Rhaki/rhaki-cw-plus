@@ -4,7 +4,7 @@ version         = "0.1.0"
 edition         = "2021"
 license         = "Apache-2.0"
 authors         = ["Rhaki"]
-description     = "Advanced utils for cosmwasm contract"
+description     = "Macro for rhaki-cw-utils"
 repository      = "https://github.com/Rhaki/rhaki-cw-plus"
 
 [dependencies]

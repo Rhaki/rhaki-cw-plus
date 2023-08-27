@@ -1,6 +1,6 @@
 use std::{
     fmt::{Debug, Display},
-    ops::{Add, Div, Mul, Sub, Neg},
+    ops::{Add, Div, Mul, Neg, Sub},
     str::FromStr,
 };
 
@@ -173,6 +173,52 @@ impl Add for SignedDecimal {
 }
 forward_ref_binop!(impl Add, add for SignedDecimal, SignedDecimal);
 
+impl Add<Decimal> for SignedDecimal {
+    type Output = Self;
+
+    fn add(self, other: Decimal) -> Self::Output {
+        if self.is_positive {
+            SignedDecimal {
+                value: self.value + other,
+                is_positive: true,
+            }
+        } else if self.value > other {
+            SignedDecimal {
+                value: self.value - other,
+                is_positive: false,
+            }
+        } else {
+            SignedDecimal {
+                value: other - self.value,
+                is_positive: true,
+            }
+        }
+    }
+}
+
+impl Add<SignedDecimal> for Decimal {
+    type Output = SignedDecimal;
+
+    fn add(self, other: SignedDecimal) -> Self::Output {
+        if other.is_positive {
+            SignedDecimal {
+                value: other.value + self,
+                is_positive: true,
+            }
+        } else if self > other.value {
+            SignedDecimal {
+                value: self - other.value,
+                is_positive: true,
+            }
+        } else {
+            SignedDecimal {
+                value: other.value - self,
+                is_positive: false,
+            }
+        }
+    }
+}
+
 impl Sub for SignedDecimal {
     type Output = Self;
 
@@ -198,6 +244,56 @@ impl Sub for SignedDecimal {
     }
 }
 forward_ref_binop!(impl Sub, sub for SignedDecimal, SignedDecimal);
+
+impl Sub<Decimal> for SignedDecimal {
+    type Output = Self;
+
+    fn sub(self, other: Decimal) -> Self::Output {
+        if !self.is_positive {
+            SignedDecimal {
+                value: self.value + other,
+                is_positive: false,
+            }
+        } else {
+            if self.value > other {
+                SignedDecimal {
+                    value: self.value - other,
+                    is_positive: true,
+                }
+            } else {
+                SignedDecimal {
+                    value: other - self.value,
+                    is_positive: false,
+                }
+            }
+        }
+    }
+}
+
+impl Sub<SignedDecimal> for Decimal {
+    type Output = SignedDecimal;
+
+    fn sub(self, other: SignedDecimal) -> Self::Output {
+        if !other.is_positive {
+            SignedDecimal {
+                value: self + other.value,
+                is_positive: true,
+            }
+        } else {
+            if self > other.value {
+                SignedDecimal {
+                    value: self - other.value,
+                    is_positive: true,
+                }
+            } else {
+                SignedDecimal {
+                    value: other.value - self,
+                    is_positive: false,
+                }
+            }
+        }
+    }
+}
 
 impl Mul for SignedDecimal {
     type Output = Self;
@@ -273,7 +369,7 @@ impl Neg for SignedDecimal {
     fn neg(self) -> Self::Output {
         SignedDecimal {
             value: self.value,
-            is_positive: !self.is_positive
+            is_positive: !self.is_positive,
         }
     }
 }
@@ -335,13 +431,12 @@ pub fn test_signed_decimal() {
 
     let a: Decimal = Decimal::from_str("10").unwrap();
     let b = SignedDecimal::from_str("-100").unwrap();
-
+    assert_eq!(a + b, SignedDecimal::from_str("-90").unwrap());
+    assert_eq!(a - b, SignedDecimal::from_str("110").unwrap());
+    assert_eq!(b - a, SignedDecimal::from_str("-110").unwrap());
     assert_eq!(a * b, SignedDecimal::from_str("-1000").unwrap());
     assert_eq!(a / b, SignedDecimal::from_str("-0.1").unwrap());
 
     let b = -b;
     assert_eq!(b, SignedDecimal::from_str("100").unwrap());
-
-
-
 }
