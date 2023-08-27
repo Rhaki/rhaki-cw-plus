@@ -1,6 +1,6 @@
 use std::{
     fmt::{Debug, Display},
-    ops::{Add, Div, Mul, Sub},
+    ops::{Add, Div, Mul, Sub, Neg},
     str::FromStr,
 };
 
@@ -267,6 +267,17 @@ impl Div<SignedDecimal> for Decimal {
     }
 }
 
+impl Neg for SignedDecimal {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        SignedDecimal {
+            value: self.value,
+            is_positive: !self.is_positive
+        }
+    }
+}
+
 pub trait IntoSignedDeciaml {
     fn as_signed_decimal(&self) -> SignedDecimal;
 }
@@ -327,4 +338,10 @@ pub fn test_signed_decimal() {
 
     assert_eq!(a * b, SignedDecimal::from_str("-1000").unwrap());
     assert_eq!(a / b, SignedDecimal::from_str("-0.1").unwrap());
+
+    let b = -b;
+    assert_eq!(b, SignedDecimal::from_str("100").unwrap());
+
+
+
 }
