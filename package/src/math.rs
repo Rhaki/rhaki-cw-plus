@@ -9,7 +9,7 @@ use forward_ref::forward_ref_binop;
 
 pub trait IntoUint {
     fn as_uint128(self) -> StdResult<Uint128>;
-    fn as_uint256(self) -> Uint256;
+    fn as_uint256(self) -> StdResult<Uint256>;
 }
 
 impl IntoUint for Decimal {
@@ -17,18 +17,48 @@ impl IntoUint for Decimal {
         Ok(self * Uint128::one())
     }
 
-    fn as_uint256(self) -> Uint256 {
-        Uint256::from_uint128(self * Uint128::one())
+    fn as_uint256(self) -> StdResult<Uint256> {
+        Ok(Uint256::from_uint128(self * Uint128::one()))
     }
 }
 
 impl IntoUint for Decimal256 {
     fn as_uint128(self) -> StdResult<Uint128> {
-        self.as_uint256().as_uint128()
+        self.as_uint256()?.as_uint128()
     }
 
-    fn as_uint256(self) -> Uint256 {
-        self * Uint256::one()
+    fn as_uint256(self) -> StdResult<Uint256> {
+        Ok(self * Uint256::one())
+    }
+}
+
+impl IntoUint for &str {
+    fn as_uint128(self) -> StdResult<Uint128> {
+        Uint128::from_str(self)
+    }
+
+    fn as_uint256(self) -> StdResult<Uint256> {
+        Uint256::from_str(self)
+    }
+}
+
+impl IntoUint for u128 {
+    fn as_uint128(self) -> StdResult<Uint128> {
+        Ok(Uint128::from(self))
+    }
+
+    fn as_uint256(self) -> StdResult<Uint256> {
+        Ok(Uint256::from(self))
+    }
+}
+
+impl IntoUint for u64 {
+    fn as_uint128(self) -> StdResult<Uint128> {
+        Ok(Uint128::from(self))
+    }
+
+    fn as_uint256(self) -> StdResult<Uint256> {
+        Ok(Uint256::from(self))
     }
 }
 
@@ -95,6 +125,27 @@ impl IntoDecimal for Uint256 {
                 self.to_string()
             ))
         })
+    }
+}
+
+impl IntoDecimal for &str {
+    fn as_decimal(self) -> StdResult<Decimal> {
+        Decimal::from_str(self)
+    }
+
+    fn as_decimal_256(self) -> StdResult<Decimal256> {
+        Decimal256::from_str(self)
+    }
+}
+
+impl IntoDecimal for Decimal256 {
+    fn as_decimal(self) -> StdResult<Decimal> {
+        Decimal::from_atomics(self.atomics().as_uint128()?, self.decimal_places())
+            .map_err(|err| StdError::generic_err(err.to_string()))
+    }
+
+    fn as_decimal_256(self) -> StdResult<Decimal256> {
+        Ok(self)
     }
 }
 
