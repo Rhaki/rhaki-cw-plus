@@ -33,7 +33,31 @@ pub mod map {
 }
 
 pub mod multi_index {
+    use cw_storage_plus::{IndexList, IndexedMap};
+
     use super::*;
+
+    /// Load the values of a `cw_storage_plus::IndexMap`, ordered by `Order::Ascending` or `Order::Descending`
+    pub fn get_items<
+        'a,
+        T: Serialize + DeserializeOwned + Clone,
+        K: PrimaryKey<'a> + KeyDeserialize + 'static,
+        I: IndexList<T>,
+    >(
+        storage: &dyn Storage,
+        index: IndexedMap<'a, K, T, I>,
+        order: Order,
+        limit: Option<u32>,
+        start_after: Option<K>,
+    ) -> StdResult<Vec<(K::Output, T)>> {
+        let (min_b, max_b) = min_max_from_order(start_after, &order);
+
+        Ok(index
+            .range(storage, min_b, max_b, order)
+            .take(min(MAX_LIMIT, limit.unwrap_or(DEFAULT_LIMIT)) as usize)
+            .map(|item| item.unwrap())
+            .collect())
+    }
 
     /// Load the value linked to a `UniqueIndex`.
     ///
