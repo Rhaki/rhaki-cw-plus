@@ -202,6 +202,25 @@ impl IntoDecimal for &str {
     }
 }
 
+impl IntoDecimal for Decimal {
+    fn into_decimal(self) -> Decimal {
+        self
+    }
+
+    fn into_decimal_256(self) -> Decimal256 {
+        Decimal256::from_atomics(self.atomics().into_uint128(), self.decimal_places()).unwrap()
+    }
+
+    fn try_into_decimal(self) -> StdResult<Decimal> {
+        Ok(self)
+    }
+
+    fn try_into_decimal_256(self) -> StdResult<Decimal256> {
+        Decimal256::from_atomics(self.atomics().try_into_uint128()?, self.decimal_places())
+            .into_std_result()
+    }
+}
+
 impl IntoDecimal for Decimal256 {
     fn into_decimal(self) -> Decimal {
         Decimal::from_atomics(self.atomics().into_uint128(), self.decimal_places()).unwrap()
