@@ -36,7 +36,7 @@ impl IntoUint for Decimal {
 
 impl IntoUint for Decimal256 {
     fn into_uint128(self) -> Uint128 {
-        self.into_uint256().into_uint128()
+        self.try_into_uint128().unwrap()
     }
 
     fn into_uint256(self) -> Uint256 {
@@ -44,7 +44,7 @@ impl IntoUint for Decimal256 {
     }
 
     fn try_into_uint128(self) -> StdResult<Uint128> {
-        self.try_into_uint256()?.try_into_uint128()
+        self.try_into_uint256()?.try_into().into_std_result()
     }
 
     fn try_into_uint256(self) -> StdResult<Uint256> {
@@ -105,42 +105,6 @@ impl IntoUint for u64 {
     }
 }
 
-impl IntoUint for Uint128 {
-    fn into_uint128(self) -> Uint128 {
-        self
-    }
-
-    fn into_uint256(self) -> Uint256 {
-        Uint256::from_uint128(self)
-    }
-
-    fn try_into_uint128(self) -> StdResult<Uint128> {
-        Ok(self)
-    }
-
-    fn try_into_uint256(self) -> StdResult<Uint256> {
-        Ok(Uint256::from_uint128(self))
-    }
-}
-
-impl IntoUint for Uint256 {
-    fn into_uint128(self) -> Uint128 {
-        self.try_into().unwrap()
-    }
-
-    fn into_uint256(self) -> Uint256 {
-        self
-    }
-
-    fn try_into_uint128(self) -> StdResult<Uint128> {
-        self.try_into().into_std_result()
-    }
-
-    fn try_into_uint256(self) -> StdResult<Uint256> {
-        Ok(self)
-    }
-}
-
 pub trait IntoDecimal {
     fn into_decimal(self) -> Decimal;
     fn into_decimal_256(self) -> Decimal256;
@@ -168,7 +132,7 @@ impl IntoDecimal for Uint128 {
 
 impl IntoDecimal for Uint256 {
     fn into_decimal(self) -> Decimal {
-        Decimal::from_ratio(self.into_uint128(), Uint128::one())
+        self.try_into_decimal().unwrap()
     }
 
     fn into_decimal_256(self) -> Decimal256 {
@@ -176,7 +140,8 @@ impl IntoDecimal for Uint256 {
     }
 
     fn try_into_decimal(self) -> StdResult<Decimal> {
-        Decimal::checked_from_ratio(self.into_uint128(), Uint128::one()).into_std_result()
+        Decimal::checked_from_ratio(TryInto::<Uint128>::try_into(self)?, Uint128::one())
+            .into_std_result()
     }
 
     fn try_into_decimal_256(self) -> StdResult<Decimal256> {
@@ -199,44 +164,6 @@ impl IntoDecimal for &str {
 
     fn try_into_decimal_256(self) -> StdResult<Decimal256> {
         Decimal256::from_str(self)
-    }
-}
-
-impl IntoDecimal for Decimal {
-    fn into_decimal(self) -> Decimal {
-        self
-    }
-
-    fn into_decimal_256(self) -> Decimal256 {
-        Decimal256::from_atomics(self.atomics().into_uint128(), self.decimal_places()).unwrap()
-    }
-
-    fn try_into_decimal(self) -> StdResult<Decimal> {
-        Ok(self)
-    }
-
-    fn try_into_decimal_256(self) -> StdResult<Decimal256> {
-        Decimal256::from_atomics(self.atomics().try_into_uint128()?, self.decimal_places())
-            .into_std_result()
-    }
-}
-
-impl IntoDecimal for Decimal256 {
-    fn into_decimal(self) -> Decimal {
-        Decimal::from_atomics(self.atomics().into_uint128(), self.decimal_places()).unwrap()
-    }
-
-    fn into_decimal_256(self) -> Decimal256 {
-        self
-    }
-
-    fn try_into_decimal(self) -> StdResult<Decimal> {
-        Decimal::from_atomics(self.atomics().try_into_uint128()?, self.decimal_places())
-            .into_std_result()
-    }
-
-    fn try_into_decimal_256(self) -> StdResult<Decimal256> {
-        Ok(self)
     }
 }
 
@@ -585,13 +512,14 @@ impl IntoSignedDeciaml for Decimal {
 }
 
 #[test]
+#[rustfmt::skip]
 pub fn test_convert() {
     assert_eq!("0.01", format!("{}", "0.01".into_decimal()));
     assert_eq!("0.01", format!("{}", "0.01".into_decimal_256()));
     assert_eq!(Uint128::one(), "1".into_uint128());
     assert_eq!(Uint256::one(), "1".into_uint256());
-    assert_eq!(Uint128::one(), Uint256::one().into_uint128());
-    assert_eq!(Uint256::one(), Uint128::one().into_uint256());
+    assert_eq!(Uint128::one(), TryInto::<Uint128>::try_into(Uint256::one()).unwrap());
+    assert_eq!(Uint256::one(), Into::<Uint256>::into(Uint128::one()));
     assert_eq!(Decimal::one(), Uint128::one().into_decimal());
     assert_eq!(Decimal256::one(), Uint128::one().into_decimal_256());
     assert_eq!(Decimal::one(), Uint256::one().into_decimal());
