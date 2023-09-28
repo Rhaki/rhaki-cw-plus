@@ -6,146 +6,276 @@ use std::{
 
 use cosmwasm_std::{Decimal, Decimal256, StdError, StdResult, Uint128, Uint256};
 use forward_ref::forward_ref_binop;
+use pyth_sdk_cw::PriceFeedResponse;
+
+use crate::traits::IntoStdResult;
 
 pub trait IntoUint {
-    fn as_uint128(self) -> StdResult<Uint128>;
-    fn as_uint256(self) -> StdResult<Uint256>;
+    fn into_uint128(self) -> Uint128;
+    fn into_uint256(self) -> Uint256;
+    fn try_into_uint128(self) -> StdResult<Uint128>;
+    fn try_into_uint256(self) -> StdResult<Uint256>;
 }
 
 impl IntoUint for Decimal {
-    fn as_uint128(self) -> StdResult<Uint128> {
+    fn into_uint128(self) -> Uint128 {
+        self * Uint128::one()
+    }
+
+    fn into_uint256(self) -> Uint256 {
+        Uint256::from_uint128(self * Uint128::one())
+    }
+    fn try_into_uint128(self) -> StdResult<Uint128> {
         Ok(self * Uint128::one())
     }
 
-    fn as_uint256(self) -> StdResult<Uint256> {
+    fn try_into_uint256(self) -> StdResult<Uint256> {
         Ok(Uint256::from_uint128(self * Uint128::one()))
     }
 }
 
 impl IntoUint for Decimal256 {
-    fn as_uint128(self) -> StdResult<Uint128> {
-        self.as_uint256()?.as_uint128()
+    fn into_uint128(self) -> Uint128 {
+        self.into_uint256().into_uint128()
     }
 
-    fn as_uint256(self) -> StdResult<Uint256> {
+    fn into_uint256(self) -> Uint256 {
+        self * Uint256::one()
+    }
+
+    fn try_into_uint128(self) -> StdResult<Uint128> {
+        self.try_into_uint256()?.try_into_uint128()
+    }
+
+    fn try_into_uint256(self) -> StdResult<Uint256> {
         Ok(self * Uint256::one())
     }
 }
 
 impl IntoUint for &str {
-    fn as_uint128(self) -> StdResult<Uint128> {
+    fn into_uint128(self) -> Uint128 {
+        Uint128::from_str(self).unwrap()
+    }
+
+    fn into_uint256(self) -> Uint256 {
+        Uint256::from_str(self).unwrap()
+    }
+    fn try_into_uint128(self) -> StdResult<Uint128> {
         Uint128::from_str(self)
     }
 
-    fn as_uint256(self) -> StdResult<Uint256> {
+    fn try_into_uint256(self) -> StdResult<Uint256> {
         Uint256::from_str(self)
     }
 }
 
 impl IntoUint for u128 {
-    fn as_uint128(self) -> StdResult<Uint128> {
+    fn into_uint128(self) -> Uint128 {
+        Uint128::from(self)
+    }
+
+    fn into_uint256(self) -> Uint256 {
+        Uint256::from(self)
+    }
+
+    fn try_into_uint128(self) -> StdResult<Uint128> {
         Ok(Uint128::from(self))
     }
 
-    fn as_uint256(self) -> StdResult<Uint256> {
+    fn try_into_uint256(self) -> StdResult<Uint256> {
         Ok(Uint256::from(self))
     }
 }
 
 impl IntoUint for u64 {
-    fn as_uint128(self) -> StdResult<Uint128> {
+    fn into_uint128(self) -> Uint128 {
+        Uint128::from(self)
+    }
+
+    fn into_uint256(self) -> Uint256 {
+        Uint256::from(self)
+    }
+
+    fn try_into_uint128(self) -> StdResult<Uint128> {
         Ok(Uint128::from(self))
     }
 
-    fn as_uint256(self) -> StdResult<Uint256> {
+    fn try_into_uint256(self) -> StdResult<Uint256> {
         Ok(Uint256::from(self))
     }
 }
 
-pub trait IntoUint128 {
-    fn as_uint128(self) -> StdResult<Uint128>;
-}
+impl IntoUint for Uint128 {
+    fn into_uint128(self) -> Uint128 {
+        self
+    }
 
-impl IntoUint128 for Uint256 {
-    fn as_uint128(self) -> StdResult<Uint128> {
-        self.try_into()
-            .map_err(|err| StdError::ConversionOverflow { source: err })
+    fn into_uint256(self) -> Uint256 {
+        Uint256::from_uint128(self)
+    }
+
+    fn try_into_uint128(self) -> StdResult<Uint128> {
+        Ok(self)
+    }
+
+    fn try_into_uint256(self) -> StdResult<Uint256> {
+        Ok(Uint256::from_uint128(self))
     }
 }
 
-pub trait IntoUint256 {
-    fn as_uint256(self) -> Uint256;
-}
+impl IntoUint for Uint256 {
+    fn into_uint128(self) -> Uint128 {
+        self.try_into().unwrap()
+    }
 
-impl IntoUint256 for Uint128 {
-    fn as_uint256(self) -> Uint256 {
-        Uint256::from_uint128(self)
+    fn into_uint256(self) -> Uint256 {
+        self
+    }
+
+    fn try_into_uint128(self) -> StdResult<Uint128> {
+        self.try_into().into_std_result()
+    }
+
+    fn try_into_uint256(self) -> StdResult<Uint256> {
+        Ok(self)
     }
 }
 
 pub trait IntoDecimal {
-    fn as_decimal(self) -> StdResult<Decimal>;
-    fn as_decimal_256(self) -> StdResult<Decimal256>;
+    fn into_decimal(self) -> Decimal;
+    fn into_decimal_256(self) -> Decimal256;
+    fn try_into_decimal(self) -> StdResult<Decimal>;
+    fn try_into_decimal_256(self) -> StdResult<Decimal256>;
 }
 
 impl IntoDecimal for Uint128 {
-    fn as_decimal(self) -> StdResult<Decimal> {
-        Decimal::checked_from_ratio(self, Uint128::one()).map_err(|_| {
-            StdError::generic_err(format!(
-                "Overflow converting {} into Decimal",
-                self.to_string()
-            ))
-        })
+    fn into_decimal(self) -> Decimal {
+        Decimal::from_ratio(self, Uint128::one())
     }
 
-    fn as_decimal_256(self) -> StdResult<Decimal256> {
-        Decimal256::checked_from_ratio(self, Uint128::one()).map_err(|_| {
-            StdError::generic_err(format!(
-                "Overflow converting {} into Decimal",
-                self.to_string()
-            ))
-        })
+    fn into_decimal_256(self) -> Decimal256 {
+        Decimal256::from_ratio(self, Uint256::one())
+    }
+
+    fn try_into_decimal(self) -> StdResult<Decimal> {
+        Decimal::checked_from_ratio(self, Uint128::one()).into_std_result()
+    }
+
+    fn try_into_decimal_256(self) -> StdResult<Decimal256> {
+        Decimal256::checked_from_ratio(self, Uint128::one()).into_std_result()
     }
 }
 
 impl IntoDecimal for Uint256 {
-    fn as_decimal(self) -> StdResult<Decimal> {
-        Decimal::checked_from_ratio(self.as_uint128()?, Uint128::one()).map_err(|_| {
-            StdError::generic_err(format!(
-                "Overflow converting {} into Decimal",
-                self.to_string()
-            ))
-        })
+    fn into_decimal(self) -> Decimal {
+        Decimal::from_ratio(self.into_uint128(), Uint128::one())
     }
 
-    fn as_decimal_256(self) -> StdResult<Decimal256> {
-        Decimal256::checked_from_ratio(self, Uint128::one()).map_err(|_| {
-            StdError::generic_err(format!(
-                "Overflow converting {} into Decimal",
-                self.to_string()
-            ))
-        })
+    fn into_decimal_256(self) -> Decimal256 {
+        Decimal256::from_ratio(self, Uint128::one())
+    }
+
+    fn try_into_decimal(self) -> StdResult<Decimal> {
+        Decimal::checked_from_ratio(self.into_uint128(), Uint128::one()).into_std_result()
+    }
+
+    fn try_into_decimal_256(self) -> StdResult<Decimal256> {
+        Decimal256::checked_from_ratio(self, Uint128::one()).into_std_result()
     }
 }
 
 impl IntoDecimal for &str {
-    fn as_decimal(self) -> StdResult<Decimal> {
+    fn into_decimal(self) -> Decimal {
+        Decimal::from_str(self).unwrap()
+    }
+
+    fn into_decimal_256(self) -> Decimal256 {
+        Decimal256::from_str(self).unwrap()
+    }
+
+    fn try_into_decimal(self) -> StdResult<Decimal> {
         Decimal::from_str(self)
     }
 
-    fn as_decimal_256(self) -> StdResult<Decimal256> {
+    fn try_into_decimal_256(self) -> StdResult<Decimal256> {
         Decimal256::from_str(self)
     }
 }
 
 impl IntoDecimal for Decimal256 {
-    fn as_decimal(self) -> StdResult<Decimal> {
-        Decimal::from_atomics(self.atomics().as_uint128()?, self.decimal_places())
-            .map_err(|err| StdError::generic_err(err.to_string()))
+    fn into_decimal(self) -> Decimal {
+        Decimal::from_atomics(self.atomics().into_uint128(), self.decimal_places()).unwrap()
     }
 
-    fn as_decimal_256(self) -> StdResult<Decimal256> {
+    fn into_decimal_256(self) -> Decimal256 {
+        self
+    }
+
+    fn try_into_decimal(self) -> StdResult<Decimal> {
+        Decimal::from_atomics(self.atomics().try_into_uint128()?, self.decimal_places())
+            .into_std_result()
+    }
+
+    fn try_into_decimal_256(self) -> StdResult<Decimal256> {
         Ok(self)
+    }
+}
+
+impl IntoDecimal for u128 {
+    fn into_decimal(self) -> Decimal {
+        Decimal::from_ratio(self, Uint128::one())
+    }
+
+    fn into_decimal_256(self) -> Decimal256 {
+        Decimal256::from_ratio(self, Uint256::one())
+    }
+
+    fn try_into_decimal(self) -> StdResult<Decimal> {
+        Decimal::checked_from_ratio(self, Uint128::one()).into_std_result()
+    }
+
+    fn try_into_decimal_256(self) -> StdResult<Decimal256> {
+        Decimal256::checked_from_ratio(self, Uint128::one()).into_std_result()
+    }
+}
+
+impl IntoDecimal for u64 {
+    fn into_decimal(self) -> Decimal {
+        Decimal::from_ratio(self, Uint128::one())
+    }
+
+    fn into_decimal_256(self) -> Decimal256 {
+        Decimal256::from_ratio(self, Uint256::one())
+    }
+
+    fn try_into_decimal(self) -> StdResult<Decimal> {
+        Decimal::checked_from_ratio(self, Uint128::one()).into_std_result()
+    }
+
+    fn try_into_decimal_256(self) -> StdResult<Decimal256> {
+        Decimal256::checked_from_ratio(self, Uint128::one()).into_std_result()
+    }
+}
+
+impl IntoDecimal for PriceFeedResponse {
+    fn into_decimal(self) -> Decimal {
+        self.try_into_decimal().unwrap()
+    }
+
+    fn into_decimal_256(self) -> Decimal256 {
+        self.try_into_decimal_256().unwrap()
+    }
+
+    fn try_into_decimal(self) -> StdResult<Decimal> {
+        let price = self.price_feed.get_price_unchecked();
+
+        Decimal::from_atomics(price.price as u128, price.expo as u32).into_std_result()
+    }
+
+    fn try_into_decimal_256(self) -> StdResult<Decimal256> {
+        let price = self.price_feed.get_price_unchecked();
+
+        Decimal256::from_atomics(price.price as u128, price.expo as u32).into_std_result()
     }
 }
 
@@ -437,24 +567,20 @@ impl IntoSignedDeciaml for Decimal {
 
 #[test]
 pub fn test_convert() {
-    let a = Uint128::from(1_000_000_000_000_000_000_000_u128);
-    a.as_decimal().unwrap_err();
-    a.as_decimal_256().unwrap();
-    let mut c = Uint128::MAX.as_uint256();
-
-    let res = std::panic::catch_unwind(|| {
-        let _ = Uint128::MAX * Uint128::from(2_u128);
-    });
-
-    assert!(res.is_err());
-
-    c = c * Uint256::from_u128(2);
-
-    c.as_uint128().unwrap_err();
-
-    c = c / Uint256::from_u128(3);
-
-    c.as_uint128().unwrap();
+    assert_eq!("0.01", format!("{}", "0.01".into_decimal()));
+    assert_eq!("0.01", format!("{}", "0.01".into_decimal_256()));
+    assert_eq!(Uint128::one(), "1".into_uint128());
+    assert_eq!(Uint256::one(), "1".into_uint256());
+    assert_eq!(Uint128::one(), Uint256::one().into_uint128());
+    assert_eq!(Uint256::one(), Uint128::one().into_uint256());
+    assert_eq!(Decimal::one(), Uint128::one().into_decimal());
+    assert_eq!(Decimal256::one(), Uint128::one().into_decimal_256());
+    assert_eq!(Decimal::one(), Uint256::one().into_decimal());
+    assert_eq!(Decimal256::one(), Uint256::one().into_decimal_256());
+    assert_eq!(Uint128::one(), Decimal::one().into_uint128());
+    assert_eq!(Uint256::one(), Decimal::one().into_uint256());
+    assert_eq!(Uint128::one(), Decimal256::one().into_uint128());
+    assert_eq!(Uint256::one(), Decimal256::one().into_uint256());
 }
 
 #[test]

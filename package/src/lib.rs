@@ -7,6 +7,7 @@ pub mod test;
 pub mod utils;
 pub mod wasm;
 pub mod math;
+pub mod traits;
 
 pub use rhaki_cw_plus_macro::cw_serde_value;
 pub use serde as _serde;

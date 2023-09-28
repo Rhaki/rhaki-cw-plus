@@ -1,9 +1,9 @@
 use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
-use crate::encdec::{self, base64_encode};
+use crate::{encdec::{self, base64_encode}, traits::IntoStdResult};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{CosmosMsg, StdError, StdResult};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 pub use serde_cw_value::Value;
 pub use serde_json::json;
 use serde_json::Value as StdValue;
@@ -164,3 +164,12 @@ where
     S: Deserialize<'de>,
 {
 }
+
+#[allow(clippy::wrong_self_convention)]
+pub trait IntoSerdeJsonString: Serialize {
+    fn into_json_string(&self) -> StdResult<String> {
+        serde_json_wasm::to_string(self).into_std_result()
+    }
+}
+
+impl<T: Serialize> IntoSerdeJsonString for Option<T> {}

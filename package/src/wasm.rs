@@ -1,4 +1,5 @@
-use cosmwasm_std::{instantiate2_address, Addr, Api, Binary, QuerierWrapper, StdError, StdResult};
+use cosmwasm_std::{instantiate2_address, Addr, Api, Binary, QuerierWrapper, StdError, StdResult, CosmosMsg, WasmMsg, Coin, to_binary};
+use serde::Serialize;
 
 pub fn generate_instantiate_2_addr(
     querier: &QuerierWrapper,
@@ -19,4 +20,47 @@ pub fn generate_instantiate_2_addr(
     };
 
     api.addr_humanize(&addr)
+}
+
+
+pub trait CosmosMsgBuilder {
+    fn into_cosmos_msg(self) -> CosmosMsg;
+}
+
+pub trait WasmMsgBuilder {
+    fn build_execute<T: Serialize>(
+        contract: impl Into<String>,
+        msg: T,
+        funds: Vec<Coin>,
+    ) -> StdResult<WasmMsg> {
+        Ok(WasmMsg::Execute {
+            contract_addr: contract.into(),
+            msg: to_binary(&msg)?,
+            funds,
+        })
+    }
+
+    fn build_init<T: Serialize>(
+        admin: Option<String>,
+        code_id: u64,
+        msg: T,
+        funds: Vec<Coin>,
+        label: String,
+    ) -> StdResult<WasmMsg> {
+        Ok(WasmMsg::Instantiate {
+            admin,
+            code_id,
+            msg: to_binary(&msg)?,
+            funds,
+            label,
+        })
+    }
+}
+
+impl WasmMsgBuilder for WasmMsg {}
+
+impl CosmosMsgBuilder for WasmMsg {
+    fn into_cosmos_msg(self) -> CosmosMsg {
+        CosmosMsg::Wasm(self)
+    }
 }
