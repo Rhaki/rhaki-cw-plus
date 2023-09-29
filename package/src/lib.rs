@@ -3,7 +3,6 @@ pub mod coin;
 pub mod encdec;
 pub mod serde_value;
 pub mod storage;
-pub mod test;
 pub mod utils;
 pub mod wasm;
 pub mod math;
