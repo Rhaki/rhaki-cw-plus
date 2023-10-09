@@ -1,5 +1,6 @@
 use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{StdError, StdResult};
 
 /// Transform a `Vec<T>` into `HashMap<uszie, T>`, where `key` is the index of `T`
@@ -26,4 +27,36 @@ pub fn vec_tuple_to_hashmap<K: Eq + Hash + Debug + Clone, V>(
     }
 
     Ok(map)
+}
+
+#[cw_serde]
+pub enum UpdateOption<T> {
+    ToNone,
+    Some(T),
+}
+
+impl<T: Clone> UpdateOption<T> {
+    pub fn into_option(&self) -> Option<T> {
+        match self {
+            UpdateOption::ToNone => None,
+            UpdateOption::Some(t) => Some(t.clone()),
+        }
+    }
+
+    pub fn unwrap(self) -> T {
+        match self {
+            UpdateOption::ToNone => panic!("Unwrap a None value"),
+            UpdateOption::Some(val) => val,
+        }
+    }
+}
+
+#[allow(clippy::from_over_into)]
+impl<T> Into<Option<T>> for UpdateOption<T> {
+    fn into(self) -> Option<T> {
+        match self {
+            UpdateOption::ToNone => None,
+            UpdateOption::Some(val) => Some(val),
+        }
+    }
 }
