@@ -1,13 +1,22 @@
 use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
-use crate::{encdec::{self, base64_encode}, traits::IntoStdResult};
+use crate::{
+    encdec::{self, base64_encode},
+    traits::IntoStdResult,
+};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{CosmosMsg, StdError, StdResult};
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 pub use serde_cw_value::Value;
 pub use serde_json::json;
-use serde_json::Value as StdValue;
+pub use serde_json::Value as StdValue;
 pub use serde_json_wasm::{from_str as sjw_from_str, to_string as sjw_to_string};
+
+#[cw_serde]
+pub enum PathKey {
+    Index(u64),
+    Key(String),
+}
 
 /// `Serialize` a `serde_cw_value::Value` to `String`
 pub fn value_to_string(value: &Value) -> StdResult<String> {
@@ -19,7 +28,11 @@ pub fn value_to_string(value: &Value) -> StdResult<String> {
 
 /// `Deserialize` a `String` into `serde_cw_value::Value`
 pub fn value_from_string(string: &str) -> StdResult<Value> {
-    match serde_json_wasm::from_str(string) {
+    match serde_json_wasm::from_slice(
+        serde_json_wasm::to_vec(string)
+            .into_std_result()?
+            .as_slice(),
+    ) {
         Ok(v) => Ok(v),
         Err(err) => Err(StdError::generic_err(err.to_string())),
     }
@@ -54,6 +67,7 @@ pub trait SerdeValue {
     fn as_string(&self) -> StdResult<String>;
     fn to_cosmos_msg(&self) -> StdResult<CosmosMsg>;
     fn to_b64_encoded(&self) -> StdResult<String>;
+    fn get_value_by_path<C: DeserializeOwned>(&self, path_key: Vec<PathKey>) -> StdResult<C>;
 }
 
 impl SerdeValue for Value {
@@ -74,7 +88,30 @@ impl SerdeValue for Value {
     }
 
     fn to_b64_encoded(&self) -> StdResult<String> {
-       value_to_b64_string(self)
+        value_to_b64_string(self)
+    }
+
+    fn get_value_by_path<C: DeserializeOwned>(&self, path_key: Vec<PathKey>) -> StdResult<C> {
+        let mut value = self.clone();
+        for k in path_key {
+            match k {
+                PathKey::Index(index) => match value {
+                    Value::Seq(val) => value = val[index as usize].clone(),
+                    _ => panic!(),
+                },
+                PathKey::Key(key) => match value {
+                    Value::Map(val) => value = val[&Value::from_string(key).unwrap()].clone(),
+                    _ => panic!(),
+                },
+            }
+        }
+        serde_json_wasm::from_slice(
+            serde_json_wasm::to_vec(&value)
+                .into_std_result()?
+                .as_slice(),
+        )
+        .into_std_result()
+        // Ok(value)
     }
 }
 
@@ -121,7 +158,7 @@ where
 }
 
 pub trait ToCwJson {
-    fn into_cw(&self) ->  StdResult<Value>;
+    fn into_cw(&self) -> StdResult<Value>;
 }
 
 impl ToCwJson for StdValue {

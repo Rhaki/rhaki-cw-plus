@@ -13,7 +13,7 @@ cosmwasm-std    = { workspace = true }
 serde_json      = { workspace = true }
 cosmwasm-schema = { workspace = true }
 serde           = { workspace = true }
-
+serde-json-wasm = { workspace = true }
 [dev.dependencies]
 cw-multi-test   = { workspace = true }
 

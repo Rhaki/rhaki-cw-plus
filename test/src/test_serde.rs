@@ -1,8 +1,11 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{BankMsg, Coin, CosmosMsg, StdResult};
-use rhaki_cw_plus::serde_value::{
-    std_to_sjw_value, value_to_string, DoubleDeserialize,
-    DoubleValueDeserializeResult, SerdeValue, ToCwJson,
+use cosmwasm_std::{BankMsg, Coin, CosmosMsg, Decimal, StdResult};
+use rhaki_cw_plus::{
+    math::IntoDecimal,
+    serde_value::{
+        std_to_sjw_value, value_to_string, DoubleDeserialize, DoubleValueDeserializeResult,
+        PathKey, SerdeValue, ToCwJson, Value,
+    },
 };
 use serde_json::json;
 
@@ -96,4 +99,25 @@ fn is_first(_: First) -> StdResult<()> {
 
 fn is_second(_: Second) -> StdResult<()> {
     Ok(())
+}
+
+#[test]
+fn convert() {
+    let value = Value::String("1.3".to_string());
+
+    assert_eq!(
+        serde_json_wasm::from_str::<Decimal>(&value.as_string().unwrap()).unwrap(),
+        "1.3".into_decimal()
+    );
+
+    let value = json!({"response": {"value": "1.3"}}).into_cw().unwrap();
+
+    let path = vec![
+        PathKey::Key("response".to_string()),
+        PathKey::Key("value".to_string()),
+    ];
+
+    let res = value.get_value_by_path::<Decimal>(path).unwrap();
+
+    assert_eq!(res, "1.3".into_decimal())
 }
