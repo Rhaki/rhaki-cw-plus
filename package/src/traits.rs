@@ -54,3 +54,15 @@ impl<T: Ord + Copy> MapMin for Option<T> {
         self.map(|val| min(val, with))
     }
 }
+
+pub trait AssertOwner {
+    fn get_admin(&self) -> Addr;
+
+    fn assert_admin(&self, address: Addr) -> StdResult<()> {
+        if self.get_admin() != address {
+            return Err(StdError::generic_err("Unauthorized"));
+        }
+
+        Ok(())
+    }
+}
