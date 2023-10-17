@@ -1,4 +1,7 @@
-use cosmwasm_std::{instantiate2_address, Addr, Api, Binary, QuerierWrapper, StdError, StdResult, CosmosMsg, WasmMsg, Coin, to_binary};
+use cosmwasm_std::{
+    instantiate2_address, to_binary, Addr, Api, Binary, Coin, CosmosMsg, QuerierWrapper, ReplyOn,
+    StdError, StdResult, SubMsg, WasmMsg,
+};
 use serde::Serialize;
 
 pub fn generate_instantiate_2_addr(
@@ -21,7 +24,6 @@ pub fn generate_instantiate_2_addr(
 
     api.addr_humanize(&addr)
 }
-
 
 pub trait CosmosMsgBuilder {
     fn into_cosmos_msg(self) -> CosmosMsg;
@@ -62,5 +64,45 @@ impl WasmMsgBuilder for WasmMsg {}
 impl CosmosMsgBuilder for WasmMsg {
     fn into_cosmos_msg(self) -> CosmosMsg {
         CosmosMsg::Wasm(self)
+    }
+}
+
+pub trait CosmosMsgExt {
+    fn into_submsg_always(self, reply_id: u64, gas_limit: Option<u64>) -> SubMsg;
+    fn into_submsg_on_error(self, reply_id: u64, gas_limit: Option<u64>) -> SubMsg;
+    fn into_submsg_on_success(self, reply_id: u64, gas_limit: Option<u64>) -> SubMsg;
+    fn into_submsg_never(self) -> SubMsg;
+}
+
+impl CosmosMsgExt for CosmosMsg {
+    fn into_submsg_always(self, reply_id: u64, gas_limit: Option<u64>) -> SubMsg {
+        SubMsg {
+            id: reply_id,
+            msg: self,
+            gas_limit,
+            reply_on: ReplyOn::Always,
+        }
+    }
+
+    fn into_submsg_on_error(self, reply_id: u64, gas_limit: Option<u64>) -> SubMsg {
+        SubMsg {
+            id: reply_id,
+            msg: self,
+            gas_limit,
+            reply_on: ReplyOn::Error,
+        }
+    }
+
+    fn into_submsg_on_success(self, reply_id: u64, gas_limit: Option<u64>) -> SubMsg {
+        SubMsg {
+            id: reply_id,
+            msg: self,
+            gas_limit,
+            reply_on: ReplyOn::Success,
+        }
+    }
+
+    fn into_submsg_never(self) -> SubMsg {
+        SubMsg::new(self)
     }
 }

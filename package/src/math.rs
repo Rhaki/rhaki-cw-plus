@@ -225,6 +225,16 @@ impl IntoDecimal for PriceFeedResponse {
     }
 }
 
+pub trait DecimalExtend {
+    fn round(&self) -> Decimal;
+}
+
+impl DecimalExtend for Decimal {
+    fn round(&self) -> Decimal {
+        (self + "0.5".into_decimal()).floor()
+    }
+}
+
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SignedDecimal {
     value: Decimal,
