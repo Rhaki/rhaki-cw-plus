@@ -1,6 +1,7 @@
 use std::cmp::min;
 
 use cosmwasm_std::{to_binary, Addr, Api, Binary, StdError, StdResult};
+use cw_asset::AssetInfo;
 use serde::Serialize;
 
 pub trait IntoAddr: Into<String> + Clone {
@@ -64,5 +65,22 @@ pub trait AssertOwner {
         }
 
         Ok(())
+    }
+}
+
+pub trait IntoInner {
+    type Inner;
+    fn inner(&self) -> Self::Inner;
+}
+
+impl IntoInner for AssetInfo {
+    type Inner = String;
+    /// Return the denom or address
+    fn inner(&self) -> Self::Inner {
+        match self {
+            cw_asset::AssetInfoBase::Native(denom) => denom.clone(),
+            cw_asset::AssetInfoBase::Cw20(addr) => addr.to_string(),
+            _ => todo!(),
+        }
     }
 }
