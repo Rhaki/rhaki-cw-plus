@@ -68,6 +68,8 @@ pub trait SerdeValue {
     fn to_cosmos_msg(&self) -> StdResult<CosmosMsg>;
     fn to_b64_encoded(&self) -> StdResult<String>;
     fn get_value_by_path<C: DeserializeOwned>(&self, path_key: Vec<PathKey>) -> StdResult<C>;
+    fn get_array_index(&self, index: impl Into<usize>) -> StdResult<Value>;
+    fn get_map_value(&self, value: impl Into<Value> + Clone) -> StdResult<Value>;
 }
 
 impl SerdeValue for Value {
@@ -112,6 +114,33 @@ impl SerdeValue for Value {
         )
         .into_std_result()
         // Ok(value)
+    }
+
+    fn get_array_index(&self, index: impl Into<usize>) -> StdResult<Value> {
+        if let Value::Seq(array) = self {
+            Ok(array[index.into()].clone())
+        } else {
+            Err(StdError::generic_err(format!(
+                "Value is not a Seq: {:?}",
+                self
+            )))
+        }
+    }
+
+    fn get_map_value(&self, value: impl Into<Value> + Clone) -> StdResult<Value> {
+        if let Value::Map(map) = self {
+            map.get(&value.clone().into())
+                .map(|val| val.clone())
+                .ok_or(StdError::generic_err(format!(
+                    "map key not found: {:?}",
+                    value.into()
+                )))
+        } else {
+            Err(StdError::generic_err(format!(
+                "Value is not a Map: {:?}",
+                self
+            )))
+        }
     }
 }
 
