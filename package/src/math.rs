@@ -215,13 +215,13 @@ impl IntoDecimal for PriceFeedResponse {
     fn try_into_decimal(self) -> StdResult<Decimal> {
         let price = self.price_feed.get_price_unchecked();
 
-        Decimal::from_atomics(price.price as u128, price.expo as u32).into_std_result()
+        Decimal::from_atomics(price.price as u128, price.expo.abs() as u32).into_std_result()
     }
 
     fn try_into_decimal_256(self) -> StdResult<Decimal256> {
         let price = self.price_feed.get_price_unchecked();
 
-        Decimal256::from_atomics(price.price as u128, price.expo as u32).into_std_result()
+        Decimal256::from_atomics(price.price as u128, price.expo.abs() as u32).into_std_result()
     }
 }
 
