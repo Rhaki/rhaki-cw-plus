@@ -1,11 +1,9 @@
 use std::collections::HashMap;
 
-use cosmwasm_std::{Coin, StdError, StdResult, Uint128, Env, CosmosMsg, to_binary, WasmMsg, Addr, QuerierWrapper, BankMsg};
-use cw20::TokenInfoResponse;
+use cosmwasm_std::{
+    to_binary, Addr, BankMsg, Coin, CosmosMsg, StdError, StdResult, Uint128, WasmMsg,
+};
 use cw_asset::AssetInfo;
-use osmosis_std::types::{osmosis::tokenfactory::v1beta1::{MsgMint, MsgBurn}, cosmos::bank::v1beta1::BankQuerier};
-
-use crate::{traits::IntoStdResult, math::IntoUint};
 
 /// Check if `coins` has a `len() == 1`.
 /// If a `denom` is specified, assert them.
@@ -72,7 +70,6 @@ pub fn vec_coins_to_hashmap(coins: Vec<Coin>) -> StdResult<HashMap<String, Uint1
     Ok(map)
 }
 
-
 pub trait UnwrapBase {
     type Output;
     fn unwrap_base(&self) -> Self::Output;
@@ -92,9 +89,6 @@ impl UnwrapBase for AssetInfo {
 #[allow(clippy::wrong_self_convention)]
 pub trait AssetInfoExstender {
     fn into_send_msg(&self, receiver: &Addr, amount: Uint128) -> StdResult<CosmosMsg>;
-    fn into_mint_msg(&self, receiver: &Addr, env: &Env, amount: Uint128) -> StdResult<CosmosMsg>;
-    fn into_burn_msg(&self, env: &Env, amount: Uint128) -> StdResult<CosmosMsg>;
-    fn get_supply(&self, query: &QuerierWrapper) -> StdResult<Uint128>;
 }
 
 impl AssetInfoExstender for AssetInfo {
@@ -112,69 +106,6 @@ impl AssetInfoExstender for AssetInfo {
                 })?,
                 funds: vec![],
             })),
-            // ??
-            _ => unimplemented!(),
-        }
-    }
-
-    fn into_mint_msg(&self, receiver: &Addr, env: &Env, amount: Uint128) -> StdResult<CosmosMsg> {
-        match self {
-            cw_asset::AssetInfoBase::Native(denom) => Ok(MsgMint {
-                sender: env.contract.address.to_string(),
-                amount: Some(Coin::new(amount.u128(), denom).into()),
-                mint_to_address: receiver.to_string(),
-            }
-            .into()),
-            cw_asset::AssetInfoBase::Cw20(contract_addr) => Ok(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: contract_addr.to_string(),
-                msg: to_binary(&cw20::Cw20ExecuteMsg::Mint {
-                    recipient: receiver.to_string(),
-                    amount,
-                })?,
-                funds: vec![],
-            })),
-            // ??
-            _ => unimplemented!(),
-        }
-    }
-
-    fn into_burn_msg(&self, env: &Env, amount: Uint128) -> StdResult<CosmosMsg> {
-        match self {
-            cw_asset::AssetInfoBase::Native(denom) => Ok(MsgBurn {
-                sender: env.contract.address.to_string(),
-                amount: Some(Coin::new(amount.u128(), denom).into()),
-                burn_from_address: env.contract.address.to_string(),
-            }
-            .into()),
-            cw_asset::AssetInfoBase::Cw20(contract_addr) => Ok(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: contract_addr.to_string(),
-                msg: to_binary(&cw20::Cw20ExecuteMsg::Burn { amount })?,
-                funds: vec![],
-            })),
-            // ??
-            _ => unimplemented!(),
-        }
-    }
-
-    fn get_supply(&self, querier: &QuerierWrapper) -> StdResult<Uint128> {
-        match self {
-            cw_asset::AssetInfoBase::Native(denom) => {
-                let bank_querier = BankQuerier::new(querier);
-                let supply = bank_querier
-                    .supply_of(denom.clone())
-                    .into_std_result()?
-                    .amount
-                    .unwrap()
-                    .amount;
-
-                supply.try_into_uint128()
-            }
-            cw_asset::AssetInfoBase::Cw20(contract_token) => Ok(querier
-                .query_wasm_smart::<TokenInfoResponse>(
-                    contract_token,
-                    &cw20::Cw20QueryMsg::TokenInfo {},
-                )?
-                .total_supply),
             // ??
             _ => unimplemented!(),
         }

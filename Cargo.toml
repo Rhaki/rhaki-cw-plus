@@ -16,5 +16,4 @@ serde           = { version = "1.0"     }
 syn             = { version = "1", features = ["full", "printing", "extra-traits"] }
 schemars        = { version = "0.8.3"   }
 forward_ref     = { version = "1.0.0"   }
-osmosis-std     = { version = "0.19.1"  }
 pyth-sdk-cw     = { version = "1.2.0"   }
