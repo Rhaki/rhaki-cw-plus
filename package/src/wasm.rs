@@ -25,10 +25,6 @@ pub fn generate_instantiate_2_addr(
     api.addr_humanize(&addr)
 }
 
-pub trait CosmosMsgBuilder {
-    fn into_cosmos_msg(self) -> CosmosMsg;
-}
-
 pub trait WasmMsgBuilder {
     fn build_execute<T: Serialize>(
         contract: impl Into<String>,
@@ -60,12 +56,6 @@ pub trait WasmMsgBuilder {
 }
 
 impl WasmMsgBuilder for WasmMsg {}
-
-impl CosmosMsgBuilder for WasmMsg {
-    fn into_cosmos_msg(self) -> CosmosMsg {
-        CosmosMsg::Wasm(self)
-    }
-}
 
 pub trait CosmosMsgExt {
     fn into_submsg_always(self, reply_id: u64, gas_limit: Option<u64>) -> SubMsg;

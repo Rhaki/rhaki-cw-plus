@@ -1,8 +1,8 @@
 use std::cmp::min;
 
-use cosmwasm_std::{to_binary, Addr, Api, Binary, StdError, StdResult};
+use cosmwasm_std::{from_binary, to_binary, Addr, Api, Binary, StdError, StdResult};
 use cw_asset::AssetInfo;
-use serde::Serialize;
+use serde::{de::DeserializeOwned, Serialize};
 
 pub trait IntoAddr: Into<String> + Clone {
     fn into_addr(self, api: &dyn Api) -> StdResult<Addr> {
@@ -13,19 +13,58 @@ pub trait IntoAddr: Into<String> + Clone {
     }
 }
 
-impl IntoAddr for String {}
-impl IntoAddr for &str {}
+// impl IntoAddr for String {}
+// impl IntoAddr for &str {}
 
-pub trait IntoBinary {
+impl<T> IntoAddr for T where T: Into<String> + Clone {}
+
+pub trait IntoBinaryResult {
+    /// `Serialize` into `Binary`
     fn into_binary(self) -> StdResult<Binary>;
 }
 
-impl<T> IntoBinary for StdResult<T>
+impl<T> IntoBinaryResult for StdResult<T>
 where
     T: Serialize,
 {
     fn into_binary(self) -> StdResult<Binary> {
         to_binary(&self?)
+    }
+}
+
+pub trait IntoBinary {
+    /// `Serialize` into `Binary`
+    fn into_binary(self) -> StdResult<Binary>;
+}
+
+impl<T> IntoBinary for T
+where
+    T: Serialize,
+{
+    fn into_binary(self) -> StdResult<Binary> {
+        to_binary(&self)
+    }
+}
+
+pub trait FromBinaryResult {
+    /// `Deserialize` `StdResult<Binary>` into specified `Struct`/`Enum`. It must to implement `DeserializeOwned`
+    fn des_into<T: DeserializeOwned>(self) -> StdResult<T>;
+}
+
+impl FromBinaryResult for StdResult<Binary> {
+    fn des_into<T: DeserializeOwned>(self) -> StdResult<T> {
+        from_binary(&self?)
+    }
+}
+
+pub trait FromBinary {
+    /// `Deserialize` `Binary` into specified `Struct`/`Enum`. It must to implement `DeserializeOwned`
+    fn des_into<T: DeserializeOwned>(self) -> StdResult<T>;
+}
+
+impl FromBinary for Binary {
+    fn des_into<T: DeserializeOwned>(self) -> StdResult<T> {
+        from_binary(&self)
     }
 }
 
@@ -82,5 +121,47 @@ impl IntoInner for AssetInfo {
             cw_asset::AssetInfoBase::Cw20(addr) => addr.to_string(),
             _ => todo!(),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use cosmwasm_std::{testing::mock_dependencies, Addr, Coin, StdError};
+
+    use crate::traits::{FromBinary, FromBinaryResult, IntoAddr, IntoBinary, IntoBinaryResult};
+
+    #[test]
+    fn test() {
+        let coin = Coin::new(1, "asd");
+
+        let coin_binary = coin.clone().into_binary().unwrap();
+
+        let res_binary = Ok::<_, StdError>(coin.clone()).into_binary().unwrap();
+
+        let coin_std: Coin = coin_binary.des_into().unwrap();
+        let coin_res = Ok(res_binary).des_into::<Coin>().unwrap();
+
+        assert_eq!(coin_std, coin);
+        assert_eq!(coin_res, coin);
+
+        assert_eq!(
+            Addr::unchecked("terra123"),
+            "terra123".into_unchecked_addr()
+        );
+        assert_eq!(
+            Addr::unchecked("terra123"),
+            "terra123".to_string().into_unchecked_addr()
+        );
+
+        let deps = mock_dependencies();
+
+        assert_eq!(
+            Addr::unchecked("terra123"),
+            "terra123".into_addr(&deps.api).unwrap()
+        );
+        assert_eq!(
+            Addr::unchecked("terra123"),
+            "terra123".to_string().into_addr(&deps.api).unwrap()
+        );
     }
 }
