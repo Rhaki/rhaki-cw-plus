@@ -10,3 +10,4 @@ pub mod wasm;
 
 pub use rhaki_cw_plus_macro::cw_serde_value;
 pub use serde as _serde;
+pub use cw_asset;
