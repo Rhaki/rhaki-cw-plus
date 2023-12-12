@@ -1,28 +1,47 @@
 use cosmwasm_std::{
-    instantiate2_address, to_binary, Addr, Api, Binary, Coin, CosmosMsg, QuerierWrapper, ReplyOn,
-    StdError, StdResult, SubMsg, WasmMsg,
+    instantiate2_address, to_binary, Addr, Binary, Coin, CosmosMsg, Deps, ReplyOn, StdError,
+    StdResult, SubMsg, WasmMsg,
 };
 use serde::Serialize;
 
+use crate::traits::IntoBinary;
+
 pub fn generate_instantiate_2_addr(
-    querier: &QuerierWrapper,
-    api: &dyn Api,
+    deps: Deps,
     code_id: u64,
     creator: &Addr,
     salt: &Binary,
 ) -> StdResult<Addr> {
-    let res = querier.query_wasm_code_info(code_id)?;
+    let res = deps.querier.query_wasm_code_info(code_id)?;
 
     let addr = match instantiate2_address(
         &res.checksum,
-        &api.addr_canonicalize(creator.as_ref())?,
+        &deps.api.addr_canonicalize(creator.as_ref())?,
         salt,
     ) {
         Ok(addr) => addr,
         Err(err) => return Err(StdError::generic_err(err.to_string())),
     };
 
-    api.addr_humanize(&addr)
+    deps.api.addr_humanize(&addr)
+}
+
+pub fn build_instantiate_2<T: Serialize>(
+    deps: Deps,
+    creator: &Addr,
+    salt: Binary,
+    admin: Option<String>,
+    code_id: u64,
+    msg: T,
+    funds: Vec<Coin>,
+    label: String,
+) -> StdResult<(CosmosMsg, Addr)> {
+    let addr = generate_instantiate_2_addr(deps, code_id, creator, &salt)?;
+
+    Ok((
+        WasmMsg::build_init2(admin, code_id, msg, funds, label, salt)?.into(),
+        addr,
+    ))
 }
 
 pub trait WasmMsgBuilder {
@@ -48,9 +67,27 @@ pub trait WasmMsgBuilder {
         Ok(WasmMsg::Instantiate {
             admin,
             code_id,
-            msg: to_binary(&msg)?,
+            msg: msg.into_binary()?,
             funds,
             label,
+        })
+    }
+
+    fn build_init2<T: Serialize>(
+        admin: Option<String>,
+        code_id: u64,
+        msg: T,
+        funds: Vec<Coin>,
+        label: String,
+        salt: Binary,
+    ) -> StdResult<WasmMsg> {
+        Ok(WasmMsg::Instantiate2 {
+            admin,
+            code_id,
+            msg: msg.into_binary()?,
+            funds,
+            label,
+            salt,
         })
     }
 }

@@ -13,9 +13,6 @@ pub trait IntoAddr: Into<String> + Clone {
     }
 }
 
-// impl IntoAddr for String {}
-// impl IntoAddr for &str {}
-
 impl<T> IntoAddr for T where T: Into<String> + Clone {}
 
 pub trait IntoBinaryResult {

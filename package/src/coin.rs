@@ -70,22 +70,6 @@ pub fn vec_coins_to_hashmap(coins: Vec<Coin>) -> StdResult<HashMap<String, Uint1
     Ok(map)
 }
 
-pub trait UnwrapBase {
-    type Output;
-    fn unwrap_base(&self) -> Self::Output;
-}
-
-impl UnwrapBase for AssetInfo {
-    type Output = String;
-    fn unwrap_base(&self) -> String {
-        match self {
-            cw_asset::AssetInfoBase::Native(denom) => denom.clone(),
-            cw_asset::AssetInfoBase::Cw20(addr) => addr.to_string(),
-            _ => todo!(),
-        }
-    }
-}
-
 #[allow(clippy::wrong_self_convention)]
 pub trait AssetInfoExstender {
     fn into_send_msg(&self, receiver: &Addr, amount: Uint128) -> StdResult<CosmosMsg>;
