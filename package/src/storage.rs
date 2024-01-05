@@ -141,3 +141,37 @@ fn min_max_from_order<'a, PK: PrimaryKey<'a> + KeyDeserialize + 'static>(
         Order::Descending => (None, start_after.map(Bound::exclusive)),
     }
 }
+
+#[cfg(test)]
+mod test {
+    use cosmwasm_std::{testing::mock_dependencies, Order, StdResult};
+    use cw_storage_plus::Map;
+
+    #[test]
+    pub fn test_prefix() {
+        let map: Map<(u64, u64), String> = Map::new("map");
+
+        let mut deps = mock_dependencies();
+
+        map.save(deps.as_mut().storage, (1, 1), &"1-1".to_string())
+            .unwrap();
+        map.save(deps.as_mut().storage, (1, 2), &"1-2".to_string())
+            .unwrap();
+        map.save(deps.as_mut().storage, (1, 3), &"1-3".to_string())
+            .unwrap();
+        map.save(deps.as_mut().storage, (2, 1), &"2-1".to_string())
+            .unwrap();
+        map.save(deps.as_mut().storage, (2, 2), &"2-2".to_string())
+            .unwrap();
+        map.save(deps.as_mut().storage, (2, 3), &"2-3".to_string())
+            .unwrap();
+
+        let res = map
+            .prefix(1)
+            .range(deps.as_ref().storage, None, None, Order::Ascending)
+            .collect::<StdResult<Vec<(u64, String)>>>()
+            .unwrap();
+
+        println!("{res:#?}")
+    }
+}
