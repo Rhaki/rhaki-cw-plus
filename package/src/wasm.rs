@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    instantiate2_address, to_binary, Addr, Binary, Coin, CosmosMsg, Deps, ReplyOn, StdError,
-    StdResult, SubMsg, WasmMsg,
+    instantiate2_address, Addr, Binary, Coin, CosmosMsg, Deps, ReplyOn, StdError,
+    StdResult, SubMsg, WasmMsg, to_json_binary,
 };
 use serde::Serialize;
 
@@ -52,7 +52,7 @@ pub trait WasmMsgBuilder {
     ) -> StdResult<WasmMsg> {
         Ok(WasmMsg::Execute {
             contract_addr: contract.into(),
-            msg: to_binary(&msg)?,
+            msg: to_json_binary(&msg)?,
             funds,
         })
     }

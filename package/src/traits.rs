@@ -1,6 +1,6 @@
 use std::cmp::min;
 
-use cosmwasm_std::{from_binary, to_binary, Addr, Api, Binary, StdError, StdResult};
+use cosmwasm_std::{from_json, to_json_binary, Addr, Api, Binary, StdError, StdResult};
 use cw_asset::AssetInfo;
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -25,7 +25,7 @@ where
     T: Serialize,
 {
     fn into_binary(self) -> StdResult<Binary> {
-        to_binary(&self?)
+        to_json_binary(&self?)
     }
 }
 
@@ -39,7 +39,7 @@ where
     T: Serialize,
 {
     fn into_binary(self) -> StdResult<Binary> {
-        to_binary(&self)
+        to_json_binary(&self)
     }
 }
 
@@ -50,7 +50,7 @@ pub trait FromBinaryResult {
 
 impl FromBinaryResult for StdResult<Binary> {
     fn des_into<T: DeserializeOwned>(self) -> StdResult<T> {
-        from_binary(&self?)
+        from_json(&self?)
     }
 }
 
@@ -61,7 +61,7 @@ pub trait FromBinary {
 
 impl FromBinary for Binary {
     fn des_into<T: DeserializeOwned>(self) -> StdResult<T> {
-        from_binary(&self)
+        from_json(&self)
     }
 }
 
@@ -118,6 +118,22 @@ impl IntoInner for AssetInfo {
             cw_asset::AssetInfoBase::Cw20(addr) => addr.to_string(),
             _ => todo!(),
         }
+    }
+}
+
+pub trait Unclone {
+    type Output;
+    fn unclone(&self) -> Self::Output;
+}
+
+impl<T> Unclone for Option<T>
+where
+    T: Clone,
+{
+    type Output = T;
+
+    fn unclone(&self) -> Self::Output {
+        self.clone().unwrap()
     }
 }
 

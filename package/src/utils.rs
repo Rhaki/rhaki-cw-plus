@@ -69,3 +69,11 @@ pub trait WrapOk: Sized {
 }
 
 impl<T> WrapOk for T {}
+
+pub trait WrapOption: Sized {
+    fn wrap_some(self) -> Option<Self> {
+        Some(self)
+    }
+}
+
+impl <T> WrapOption for T {}
