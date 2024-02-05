@@ -1,6 +1,6 @@
 [package]
 name                = "rhaki-cw-plus"
-version             = "0.8.0"
+version             = "0.8.1"
 edition             = "2021"
 license             = "Apache-2.0"
 authors             = ["Rhaki"]
@@ -10,7 +10,7 @@ repository          = "https://github.com/Rhaki/rhaki-cw-plus"
 [features]
 default = []
 multi-test-helper   = ["dep:cw-multi-test", "dep:anyhow"]
-deploy = []
+deploy              = ["dep:cosmos-grpc-client", "dep:tokio", "dep:async-trait"]
 
 [dependencies]
 rhaki-cw-plus-macro = { path = "../macros", version = "0.1.0" }
@@ -28,5 +28,9 @@ schemars            = { workspace = true }
 forward_ref         = { workspace = true }
 pyth-sdk-cw         = { workspace = true }
 
-cw-multi-test       = { workspace = true, optional = true, features = ["cosmwasm_1_2"]}
-anyhow              = { workspace = true, optional = true}
+cw-multi-test       = { optional = true, workspace = true, features = ["cosmwasm_1_2"] }
+anyhow              = { optional = true, workspace = true }
+
+tokio               = { optional = true, workspace = true }
+cosmos-grpc-client  = { optional = true, workspace = true }
+async-trait         = { optional = true, workspace = true }

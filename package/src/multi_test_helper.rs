@@ -175,8 +175,13 @@ impl<T: Debug, E: Display> UnwrapError for Result<T, E> {
     type Error = E;
 
     fn unwrap_err_contains(self, text: impl Into<String>) -> Self::Error {
-        let err = self.unwrap_err();
         let text: String = text.into();
+
+        let err = match self {
+            Ok(_) => panic!("Result is not error, error {text} not found"),
+            Err(e) => e,
+        };
+
         if format!("{:#}", err).contains(&text) {
             err
         } else {

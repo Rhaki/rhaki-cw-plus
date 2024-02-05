@@ -8,6 +8,7 @@ const DEFAULT_LIMIT: u32 = 10;
 const MAX_LIMIT: u32 = 30;
 
 pub mod map {
+
     use super::*;
 
     /// Load the values of a `cw_storage_plus::Map`, ordered by `Order::Ascending` or `Order::Descending`
@@ -33,6 +34,8 @@ pub mod map {
 }
 
 pub mod multi_index {
+    use std::marker::PhantomData;
+
     use cw_storage_plus::{IndexList, IndexedMap};
 
     use super::*;
@@ -43,25 +46,35 @@ pub mod multi_index {
         T: Serialize + DeserializeOwned + Clone,
         K: PrimaryKey<'a> + KeyDeserialize + 'static,
         I: IndexList<T>,
+        R,
+        F: Fn(<K as KeyDeserialize>::Output, T, PhantomData<K>) -> R,
     >(
         storage: &dyn Storage,
         index: IndexedMap<'a, K, T, I>,
         order: Order,
         limit: Option<u32>,
         start_after: Option<K>,
-    ) -> StdResult<Vec<(K::Output, T)>> {
+        map_fn: F,
+    ) -> StdResult<Vec<R>> {
         let (min_b, max_b) = min_max_from_order(start_after, &order);
 
-        Ok(index
+        index
             .range(storage, min_b, max_b, order)
             .take(min(MAX_LIMIT, limit.unwrap_or(DEFAULT_LIMIT)) as usize)
-            .map(|item| item.unwrap())
-            .collect())
+            .map(|item| item.map(|val| map_fn(val.0, val.1, PhantomData)))
+            .collect()
     }
+
+    // --- Unique ---
 
     /// Load the value linked to a `UniqueIndex`.
     ///
-    /// Return `(main_key, value)`
+    /// The variable `map_fn` map the result before returning it. If no custom mapping is require use the default provided:
+    ///
+    /// - [unique_map_key] for only get only the Primary key
+    /// - [unique_map_value] for get only the value
+    /// - [unique_map_default] for get both `(primary_key, value)`
+    ///  
     ///
     /// ## Example:
     /// ```ignore
@@ -88,7 +101,8 @@ pub mod multi_index {
     /// let (main_key: String, value: ChainInfo) = get_unique_value(
     ///     storage,
     ///     "channel_0",
-    ///     index_map().idx.unique_index
+    ///     index_map().idx.unique_index,
+    ///     uv_default
     ///     )?;
     /// ```
     pub fn get_unique_value<
@@ -96,23 +110,59 @@ pub mod multi_index {
         IK: PrimaryKey<'a> + Debug,
         T: Serialize + DeserializeOwned + Clone,
         PK: KeyDeserialize,
+        R,
+        F: Fn(Vec<u8>, T, PhantomData<PK>) -> R,
     >(
         storage: &dyn Storage,
         key: IK,
         index: UniqueIndex<'a, IK, T, PK>,
-    ) -> StdResult<(PK::Output, T)> {
+        map_fn: F,
+    ) -> StdResult<R> {
         match index.item(storage, key.clone())? {
-            Some((k, v)) => Ok((PK::from_vec(k)?, v)),
+            Some((k, v)) => Ok(map_fn(k, v, PhantomData::<PK>)),
             None => Err(StdError::generic_err(format!("Key not found {key:?}"))),
         }
     }
 
+    pub fn unique_map_key<PK: KeyDeserialize, T: Serialize + DeserializeOwned + Clone>(
+        key: Vec<u8>,
+        _value: T,
+        _: PhantomData<PK>,
+    ) -> StdResult<PK::Output> {
+        PK::from_vec(key)
+    }
+
+    pub fn unique_map_value<T: Serialize + DeserializeOwned + Clone, PK: KeyDeserialize>(
+        _key: Vec<u8>,
+        value: T,
+        _: PhantomData<PK>,
+    ) -> T {
+        value
+    }
+
+    pub fn unique_map_default<PK: KeyDeserialize, T: Serialize + DeserializeOwned + Clone>(
+        key: Vec<u8>,
+        value: T,
+        _: PhantomData<PK>,
+    ) -> StdResult<(PK::Output, T)> {
+        PK::from_vec(key).map(|key| (key, value))
+    }
+
+    // --- MULTI ---
+
     /// Load the values of a `cw_storage_plus::IndexMap` of a sub `MultiIndex`, ordered by `Order::Ascending` or `Order::Descending`
+    /// The variable `map_fn` map the result before returning it. If no custom mapping is require use the default provided:
+    ///
+    /// - [multi_map_key] for only get only the Primary key
+    /// - [multi_map_value] for get only the value
+    /// - [multi_map_default] for get both `(primary_key, value)
     pub fn get_multi_index_values<
         'a,
         IK: PrimaryKey<'a> + Prefixer<'a>,
         T: Serialize + DeserializeOwned + Clone,
         PK: PrimaryKey<'a> + KeyDeserialize + 'static,
+        R,
+        F: Fn(<PK as KeyDeserialize>::Output, T, PhantomData<PK>) -> R,
     >(
         storage: &dyn Storage,
         key: IK,
@@ -120,15 +170,40 @@ pub mod multi_index {
         order: Order,
         start_after: Option<PK>,
         limit: Option<u32>,
-    ) -> StdResult<Vec<(PK::Output, T)>> {
+        map_fn: F,
+    ) -> StdResult<Vec<R>> {
         let (min_b, max_b) = min_max_from_order(start_after, &order);
 
-        Ok(index
+        index
             .prefix(key)
             .range(storage, min_b, max_b, order)
             .take((min(MAX_LIMIT, limit.unwrap_or(DEFAULT_LIMIT))) as usize)
-            .map(|item| item.unwrap())
-            .collect())
+            .map(|item| item.map(|val| map_fn(val.0, val.1, PhantomData)))
+            .collect()
+    }
+
+    pub fn multi_map_value<T: Serialize + DeserializeOwned + Clone, PK: KeyDeserialize>(
+        _key: PK::Output,
+        value: T,
+        _phanton: PhantomData<PK>,
+    ) -> T {
+        value
+    }
+
+    pub fn multi_map_key<T: Serialize + DeserializeOwned + Clone, PK: KeyDeserialize>(
+        key: PK::Output,
+        _value: T,
+        _phanton: PhantomData<PK>,
+    ) -> PK::Output {
+        key
+    }
+
+    pub fn multi_map_default<T: Serialize + DeserializeOwned + Clone, PK: KeyDeserialize>(
+        key: PK::Output,
+        value: T,
+        _phanton: PhantomData<PK>,
+    ) -> (PK::Output, T) {
+        (key, value)
     }
 }
 

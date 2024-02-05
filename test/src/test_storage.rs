@@ -124,7 +124,9 @@ mod test_multi_index {
     use cosmwasm_schema::cw_serde;
     use cosmwasm_std::{testing::mock_dependencies, Order};
     use cw_storage_plus::{index_list, IndexedMap, MultiIndex, UniqueIndex};
-    use rhaki_cw_plus::storage::multi_index::{get_multi_index_values, get_unique_value};
+    use rhaki_cw_plus::storage::multi_index::{
+        get_multi_index_values, get_unique_value, multi_map_default, unique_map_default,
+    };
 
     #[cw_serde]
     pub struct ChainInfo {
@@ -224,7 +226,9 @@ mod test_multi_index {
             deps.as_ref().storage,
             "channel_2".to_string(),
             CHAINS().idx.src_channel,
+            unique_map_default,
         )
+        .unwrap()
         .unwrap();
 
         assert_eq!(
@@ -246,6 +250,7 @@ mod test_multi_index {
             Order::Descending,
             None,
             Some(1),
+            multi_map_default,
         )
         .unwrap();
 
@@ -268,6 +273,7 @@ mod test_multi_index {
             Order::Descending,
             Some("terra".to_string()),
             Some(1),
+            multi_map_default,
         )
         .unwrap();
 
@@ -290,6 +296,7 @@ mod test_multi_index {
             Order::Descending,
             Some("terra".to_string()),
             None,
+            multi_map_default,
         )
         .unwrap();
 
@@ -322,6 +329,7 @@ mod test_multi_index {
             Order::Ascending,
             None,
             Some(1),
+            multi_map_default,
         )
         .unwrap();
 
@@ -344,6 +352,7 @@ mod test_multi_index {
             Order::Ascending,
             Some("injective".to_string()),
             Some(1),
+            multi_map_default,
         )
         .unwrap();
 
@@ -366,6 +375,7 @@ mod test_multi_index {
             Order::Ascending,
             Some("juno".to_string()),
             None,
+            multi_map_default,
         )
         .unwrap();
 
