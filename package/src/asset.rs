@@ -1,10 +1,11 @@
-use std::collections::HashMap;
+use std::{any::type_name, collections::HashMap};
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     to_json_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, StdError, StdResult, Uint128, WasmMsg,
 };
-use cw_asset::{Asset, AssetInfo};
+use cw_asset::{Asset, AssetError, AssetInfo};
+use cw_storage_plus::{Key, KeyDeserialize, Prefixer, PrimaryKey};
 use serde::Serialize;
 
 use crate::{
@@ -162,11 +163,97 @@ impl AssetInfoPrecisioned {
     pub fn to_asset(&self, amount: AssetAmount) -> AssetPrecisioned {
         AssetPrecisioned::new(self.clone(), amount)
     }
+
+    pub fn from_str(value: &str) -> StdResult<AssetInfoPrecisioned> {
+        let words: Vec<&str> = value.split(':').collect();
+
+        let info = match words[0] {
+            "native" => {
+                if words.len() != 2 {
+                    Err(AssetError::InvalidAssetInfoFormat {
+                        received: value.into(),
+                        should_be: "native:{denom}".into(),
+                    })
+                } else {
+                    AssetInfo::Native(String::from(words[1])).wrap_ok()
+                }
+            }
+            "cw20" => {
+                if words.len() != 2 {
+                    Err(AssetError::InvalidAssetInfoFormat {
+                        received: value.into(),
+                        should_be: "cw20:{contract_addr}".into(),
+                    })
+                } else {
+                    AssetInfo::Cw20(Addr::unchecked(words[1])).wrap_ok()
+                }
+            }
+            ty => Err(AssetError::InvalidAssetType { ty: ty.into() }),
+        }
+        .into_std_result()?;
+
+        let precision = words[3].parse::<u8>().into_std_result()?;
+
+        AssetInfoPrecisioned::new(info, precision).wrap_ok()
+    }
 }
 
 impl Into<AssetInfo> for AssetInfoPrecisioned {
     fn into(self) -> AssetInfo {
         self.info
+    }
+}
+
+impl<'a> PrimaryKey<'a> for AssetInfoPrecisioned {
+    type Prefix = String;
+    type SubPrefix = ();
+    type Suffix = String;
+    type SuperSuffix = Self;
+
+    fn key(&self) -> Vec<Key> {
+        let mut keys = vec![];
+        match &self.info {
+            AssetInfo::Cw20(addr) => {
+                keys.extend("cw20:".key());
+                keys.extend(addr.key());
+            }
+            AssetInfo::Native(denom) => {
+                keys.extend("native:".key());
+                keys.extend(denom.key());
+            }
+            _ => todo!(),
+        };
+        // keys.extend(format!(":precision:{}", self.precision).key());
+        keys.extend(":precision:".key());
+        keys.extend(self.precision.key());
+        keys
+    }
+}
+
+impl KeyDeserialize for AssetInfoPrecisioned {
+    type Output = AssetInfoPrecisioned;
+
+    #[inline(always)]
+    fn from_vec(mut value: Vec<u8>) -> StdResult<Self::Output> {
+        // ignore length prefix
+        // we're allowed to do this because we set the key's namespace ourselves
+        // in PrimaryKey (first key)
+        value.drain(0..2);
+
+        // parse the bytes into an utf8 string
+        let s = String::from_utf8(value)?;
+
+        println!("{s}");
+
+        // cast the AssetError to StdError::ParseError
+        AssetInfoPrecisioned::from_str(&s)
+            .map_err(|err| StdError::parse_err(type_name::<Self::Output>(), err))
+    }
+}
+
+impl<'a> Prefixer<'a> for AssetInfoPrecisioned {
+    fn prefix(&self) -> Vec<Key> {
+        self.key()
     }
 }
 

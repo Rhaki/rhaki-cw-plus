@@ -1,5 +1,6 @@
-use cosmwasm_std::{Coin, Uint128};
-use rhaki_cw_plus::asset::{merge_coin, only_one_coin};
+use cosmwasm_std::{testing::mock_dependencies, Coin, Uint128};
+use cw_storage_plus::Map;
+use rhaki_cw_plus::asset::{merge_coin, only_one_coin, AssetInfoPrecisioned};
 
 #[test]
 fn main() {
@@ -48,4 +49,39 @@ fn main() {
         }),
     )
     .unwrap_err();
+}
+
+#[test]
+fn asset() {
+    let asset_precisioned_1 = AssetInfoPrecisioned::native("denom", 6);
+    let asset_precisioned_2 = AssetInfoPrecisioned::native("asd", 6);
+
+    let asset_precisioned_3 = AssetInfoPrecisioned::native("denom", 8);
+
+    let map: Map<AssetInfoPrecisioned, u64> = Map::new("asd");
+
+    let mut deps = mock_dependencies();
+
+    map.save(deps.as_mut().storage, asset_precisioned_1.clone(), &1)
+        .unwrap();
+    map.save(deps.as_mut().storage, asset_precisioned_2.clone(), &2)
+        .unwrap();
+
+    let one = map
+        .load(deps.as_ref().storage, asset_precisioned_1)
+        .unwrap();
+
+    let two = map
+        .load(deps.as_ref().storage, asset_precisioned_2)
+        .unwrap();
+
+    let three = map
+        .load(deps.as_ref().storage, asset_precisioned_3)
+        .unwrap();
+
+    println!("{one}");
+    println!("{two}");
+    println!("{three}")
+
+
 }
