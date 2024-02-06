@@ -8,8 +8,7 @@ use cw_asset::{Asset, AssetInfo};
 use serde::Serialize;
 
 use crate::{
-    traits::{IntoBinary, IntoStdResult},
-    utils::WrapOk,
+    traits::{IntoBinary, IntoStdResult, Wrapper},
     wasm::WasmMsgBuilder,
 };
 
@@ -133,6 +132,7 @@ impl AssetInfoExstender for AssetInfo {
     }
 }
 
+/// Wrapper container for [AssetInfo] for inclding also token precision
 #[cw_serde]
 #[non_exhaustive]
 pub struct AssetInfoPrecisioned {
@@ -170,6 +170,7 @@ impl Into<AssetInfo> for AssetInfoPrecisioned {
     }
 }
 
+/// Similar to [Asset] but with [AssetInfoPrecisioned] instead of [AssetInfo]
 #[cw_serde]
 #[non_exhaustive]
 pub struct AssetPrecisioned {
@@ -265,28 +266,11 @@ impl TryInto<Coin> for AssetPrecisioned {
     }
 }
 
+/// Input type for [AssetPrecisioned]. Implement [Into] and [From] for different data type
 #[cw_serde]
 pub enum AssetAmount {
     Precisioned(Decimal),
     Precisionless(Uint128),
-}
-
-impl From<Uint128> for AssetAmount {
-    fn from(value: Uint128) -> Self {
-        Self::Precisionless(value)
-    }
-}
-
-impl From<u128> for AssetAmount {
-    fn from(value: u128) -> Self {
-        Self::Precisionless(value.into())
-    }
-}
-
-impl From<Decimal> for AssetAmount {
-    fn from(value: Decimal) -> Self {
-        Self::Precisioned(value)
-    }
 }
 
 impl AssetAmount {
@@ -306,5 +290,23 @@ impl AssetAmount {
                 .mul_floor(*amount),
             AssetAmount::Precisionless(amount) => *amount,
         }
+    }
+}
+
+impl From<Uint128> for AssetAmount {
+    fn from(value: Uint128) -> Self {
+        Self::Precisionless(value)
+    }
+}
+
+impl From<u128> for AssetAmount {
+    fn from(value: u128) -> Self {
+        Self::Precisionless(value.into())
+    }
+}
+
+impl From<Decimal> for AssetAmount {
+    fn from(value: Decimal) -> Self {
+        Self::Precisioned(value)
     }
 }

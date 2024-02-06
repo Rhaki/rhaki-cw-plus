@@ -1,5 +1,5 @@
 use cosmwasm_std::{Coin, Uint128};
-use rhaki_cw_plus::token::{merge_coin, only_one_coin};
+use rhaki_cw_plus::asset::{merge_coin, only_one_coin};
 
 #[test]
 fn main() {

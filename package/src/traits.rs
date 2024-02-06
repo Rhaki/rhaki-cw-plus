@@ -1,7 +1,6 @@
-use std::cmp::min;
+use std::{cmp::min, error::Error};
 
 use cosmwasm_std::{from_json, to_json_binary, Addr, Api, Binary, StdError, StdResult};
-use cw_asset::AssetInfo;
 use serde::{de::DeserializeOwned, Serialize};
 
 pub trait IntoAddr: Into<String> + Clone {
@@ -104,23 +103,6 @@ pub trait AssertOwner {
     }
 }
 
-pub trait IntoInner {
-    type Inner;
-    fn inner(&self) -> Self::Inner;
-}
-
-impl IntoInner for AssetInfo {
-    type Inner = String;
-    /// Return the denom or address
-    fn inner(&self) -> Self::Inner {
-        match self {
-            cw_asset::AssetInfoBase::Native(denom) => denom.clone(),
-            cw_asset::AssetInfoBase::Cw20(addr) => addr.to_string(),
-            _ => todo!(),
-        }
-    }
-}
-
 pub trait Unclone {
     type Output;
     fn unclone(&self) -> Self::Output;
@@ -136,6 +118,19 @@ where
         self.clone().unwrap()
     }
 }
+
+pub trait Wrapper: Sized {
+    /// Wrap `self` into `Ok(self)`
+    fn wrap_ok<E: Error>(self) -> Result<Self, E> {
+        Ok(self)
+    }
+
+    fn wrap_some(self) -> Option<Self> {
+        Some(self)
+    }
+}
+
+impl<T> Wrapper for T {}
 
 #[cfg(test)]
 mod test {

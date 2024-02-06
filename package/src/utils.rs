@@ -1,4 +1,4 @@
-use std::{collections::HashMap, error::Error, fmt::Debug, hash::Hash};
+use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{StdError, StdResult};
@@ -60,20 +60,3 @@ impl<T> Into<Option<T>> for UpdateOption<T> {
         }
     }
 }
-
-pub trait WrapOk: Sized {
-    /// Wrap `self` into `Ok(self)`
-    fn wrap_ok<E: Error>(self) -> Result<Self, E> {
-        Ok(self)
-    }
-}
-
-impl<T> WrapOk for T {}
-
-pub trait WrapOption: Sized {
-    fn wrap_some(self) -> Option<Self> {
-        Some(self)
-    }
-}
-
-impl <T> WrapOption for T {}

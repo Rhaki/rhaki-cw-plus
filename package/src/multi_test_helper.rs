@@ -16,9 +16,8 @@ use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 
 use crate::{
-    token::{AssetAmount, AssetInfoPrecisioned, AssetPrecisioned},
-    traits::{IntoAddr, IntoStdResult},
-    utils::WrapOk,
+    asset::{AssetInfoPrecisioned, AssetPrecisioned},
+    traits::{IntoAddr, IntoStdResult, Wrapper},
 };
 
 const BENCH32_PREFIX: &str = "cosmos";
@@ -112,7 +111,12 @@ pub fn create_code_with_reply<
 
 pub trait Bech32AppExt {
     fn increase_time(&mut self, seconds: u64);
-    fn mint(&mut self, minter: impl Into<String>, to: impl Into<String>, amount: impl MintAmount);
+    fn mint<A: Into<AssetPrecisioned>>(
+        &mut self,
+        minter: impl Into<String>,
+        to: impl Into<String>,
+        amount: A,
+    );
     fn qy_balance(
         &mut self,
         address: &Addr,
@@ -125,8 +129,13 @@ impl Bech32AppExt for Bech32App {
         self.update_block(|block_info| block_info.time = block_info.time.plus_seconds(seconds))
     }
 
-    fn mint(&mut self, minter: impl Into<String>, to: impl Into<String>, amount: impl MintAmount) {
-        let asset = amount.get_asset();
+    fn mint<A: Into<AssetPrecisioned>>(
+        &mut self,
+        minter: impl Into<String>,
+        to: impl Into<String>,
+        asset: A,
+    ) {
+        let asset: AssetPrecisioned = asset.into();
         let amount = asset.amount_raw();
         match &asset.info() {
             cw_asset::AssetInfoBase::Native(denom) => {
@@ -187,28 +196,5 @@ impl<T: Debug, E: Display> UnwrapError for Result<T, E> {
         } else {
             panic!("{text} not contained in {err:#}")
         }
-    }
-}
-
-pub trait MintAmount {
-    fn get_asset(&self) -> AssetPrecisioned;
-}
-
-impl MintAmount for AssetPrecisioned {
-    fn get_asset(&self) -> AssetPrecisioned {
-        self.clone()
-    }
-}
-
-#[allow(suspicious_double_ref_op)]
-impl MintAmount for &AssetPrecisioned {
-    fn get_asset(&self) -> AssetPrecisioned {
-        self.clone().clone()
-    }
-}
-
-impl MintAmount for (AssetInfoPrecisioned, AssetAmount) {
-    fn get_asset(&self) -> AssetPrecisioned {
-        AssetPrecisioned::new(self.0.clone(), self.1.clone())
     }
 }
