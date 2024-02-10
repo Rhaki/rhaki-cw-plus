@@ -1,6 +1,9 @@
 use std::{cmp::min, fmt::Debug};
 
-use cosmwasm_schema::serde::{de::DeserializeOwned, Serialize};
+use cosmwasm_schema::{
+    cw_serde,
+    serde::{de::DeserializeOwned, Serialize},
+};
 use cosmwasm_std::{Order, StdError, StdResult, Storage};
 use cw_storage_plus::{Bound, KeyDeserialize, Map, MultiIndex, Prefixer, PrimaryKey, UniqueIndex};
 
@@ -248,5 +251,20 @@ mod test {
             .unwrap();
 
         println!("{res:#?}")
+    }
+}
+
+#[cw_serde]
+pub enum StorageOrder {
+    Ascending,
+    Descending,
+}
+
+impl Into<Order> for StorageOrder {
+    fn into(self) -> Order {
+        match self {
+            StorageOrder::Ascending => Order::Ascending,
+            StorageOrder::Descending => Order::Descending,
+        }
     }
 }
