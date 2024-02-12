@@ -328,6 +328,13 @@ impl AssetPrecisioned {
         }
         .map(|msg| msg.into())
     }
+
+    pub fn clone_with_amount<T: Into<AssetAmount>>(&self, amount: T) -> Self {
+        Self {
+            amount: Into::<AssetAmount>::into(amount).as_precisionless(self.precision()),
+            info: self.info.clone(),
+        }
+    }
 }
 
 impl Into<Asset> for AssetPrecisioned {
