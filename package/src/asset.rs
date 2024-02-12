@@ -335,6 +335,10 @@ impl AssetPrecisioned {
             info: self.info.clone(),
         }
     }
+
+    pub fn as_asset(&self) -> Asset {
+        self.clone().into()
+    }
 }
 
 impl Into<Asset> for AssetPrecisioned {
