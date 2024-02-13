@@ -4,11 +4,13 @@ use std::{
     str::FromStr,
 };
 
-use cosmwasm_std::{Decimal, Decimal256, StdError, StdResult, Uint128, Uint256};
+use cosmwasm_std::{
+    CheckedFromRatioError, Decimal, Decimal256, StdError, StdResult, Uint128, Uint256,
+};
 use forward_ref::forward_ref_binop;
 use pyth_sdk_cw::PriceFeedResponse;
 
-use crate::traits::IntoStdResult;
+use crate::traits::{IntoStdResult, Wrapper};
 
 pub trait IntoUint {
     fn into_uint128(self) -> Uint128;
@@ -227,11 +229,31 @@ impl IntoDecimal for PriceFeedResponse {
 
 pub trait DecimalExtend {
     fn round(&self) -> Decimal;
+    fn checked_non_zero_denom_from_ratio<A: Into<Uint128>, B: Into<Uint128>>(
+        numerator: A,
+        denominator: B,
+        or: Decimal,
+    ) -> StdResult<Decimal>;
 }
 
 impl DecimalExtend for Decimal {
     fn round(&self) -> Decimal {
         (self + "0.5".into_decimal()).floor()
+    }
+
+    /// Create a decimal from a ratio, if the denominator is zero, return `or`
+    fn checked_non_zero_denom_from_ratio<A: Into<Uint128>, B: Into<Uint128>>(
+        numerator: A,
+        denominator: B,
+        or: Decimal,
+    ) -> StdResult<Decimal> {
+        Decimal::checked_from_ratio(numerator, denominator)
+            .map(|val| val.wrap_ok())
+            .unwrap_or_else(|err| match err {
+                CheckedFromRatioError::DivideByZero => or.wrap_ok(),
+                _ => Err(err),
+            })
+            .into_std_result()
     }
 }
 
