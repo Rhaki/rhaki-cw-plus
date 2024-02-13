@@ -210,6 +210,62 @@ pub mod multi_index {
     }
 }
 
+pub mod interfaces {
+    use std::fmt::Display;
+
+    use cosmwasm_std::{StdError, StdResult, Storage};
+    use cw_storage_plus::{Item, KeyDeserialize, Map, PrimaryKey};
+    use serde::{de::DeserializeOwned, Serialize};
+
+    pub trait ItemInterface: Sized + Serialize + DeserializeOwned {
+        const NAMESPACE: &'static str;
+        const CONTRACT_NAME: &'static str;
+
+        fn load(storage: &dyn Storage) -> StdResult<Self> {
+            Self::item().load(storage).map_err(|_| {
+                StdError::generic_err(format!(
+                    "Item {} on contract {} can't be loaded",
+                    Self::NAMESPACE,
+                    Self::CONTRACT_NAME
+                ))
+            })
+        }
+
+        fn save(&mut self, storage: &mut dyn Storage) -> StdResult<()> {
+            Self::item().save(storage, &self)
+        }
+
+        fn item<'a>() -> Item<'a, Self> {
+            Item::new(Self::NAMESPACE)
+        }
+    }
+
+    pub trait MapExt {
+        type K;
+        type V;
+        fn better_load(&self, storage: &dyn Storage, key: &Self::K) -> StdResult<Self::V>;
+    }
+
+    impl<'a, K, V> MapExt for Map<'a, K, V>
+    where
+        V: Serialize + DeserializeOwned + Clone,
+        K: PrimaryKey<'a> + KeyDeserialize + Display + Clone + 'static,
+    {
+        type K = K;
+        type V = V;
+
+        fn better_load(&self, storage: &dyn Storage, key: &Self::K) -> StdResult<Self::V> {
+            self.load(storage, key.clone()).map_err(|_| {
+                StdError::generic_err(format!(
+                    "Unable to load key {} on Map with namespace {}",
+                    key,
+                    String::from_utf8_lossy(self.namespace())
+                ))
+            })
+        }
+    }
+}
+
 fn min_max_from_order<'a, PK: PrimaryKey<'a> + KeyDeserialize + 'static>(
     start_after: Option<PK>,
     order: &Order,
@@ -220,13 +276,46 @@ fn min_max_from_order<'a, PK: PrimaryKey<'a> + KeyDeserialize + 'static>(
     }
 }
 
+#[cw_serde]
+pub enum StorageOrder {
+    Ascending,
+    Descending,
+}
+
+impl Into<Order> for StorageOrder {
+    fn into(self) -> Order {
+        match self {
+            StorageOrder::Ascending => Order::Ascending,
+            StorageOrder::Descending => Order::Descending,
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use cosmwasm_std::{testing::mock_dependencies, Order, StdResult};
+    use cosmwasm_schema::cw_serde;
+    use cosmwasm_std::{testing::mock_dependencies, Order, StdError, StdResult};
     use cw_storage_plus::Map;
 
+    use crate::storage::interfaces::MapExt;
+
+    use super::interfaces::ItemInterface;
+
+    #[cw_serde]
+    pub struct TestConfig {
+        some_value: String,
+        another_value: u64,
+    }
+
+    impl ItemInterface for TestConfig {
+        const NAMESPACE: &'static str = "config";
+        const CONTRACT_NAME: &'static str = "test_contract";
+    }
+
+    pub const MAP: Map<&str, u64> = Map::new("map_namespace");
+
     #[test]
-    pub fn test_prefix() {
+    fn test_prefix() {
         let map: Map<(u64, u64), String> = Map::new("map");
 
         let mut deps = mock_dependencies();
@@ -252,19 +341,43 @@ mod test {
 
         println!("{res:#?}")
     }
-}
 
-#[cw_serde]
-pub enum StorageOrder {
-    Ascending,
-    Descending,
-}
+    #[test]
+    fn test_intefrace() {
+        let mut deps = mock_dependencies();
 
-impl Into<Order> for StorageOrder {
-    fn into(self) -> Order {
-        match self {
-            StorageOrder::Ascending => Order::Ascending,
-            StorageOrder::Descending => Order::Descending,
-        }
+        let mut config = TestConfig {
+            some_value: "foo".to_string(),
+            another_value: 0,
+        };
+
+        config.save(deps.as_mut().storage).unwrap();
+
+        let mut config = TestConfig::load(deps.as_ref().storage).unwrap();
+
+        config.some_value = "bar".to_string();
+        config.another_value = 1;
+
+        config.save(deps.as_mut().storage).unwrap();
+
+        let config = TestConfig::load(deps.as_ref().storage).unwrap();
+
+        assert_eq!(config.some_value, "bar");
+        assert_eq!(config.another_value, 1);
+
+        MAP.save(deps.as_mut().storage, "some_key", &1).unwrap();
+
+        // "Unable to load key another_key on Map with namespace map_namespace"
+
+        let err = MAP
+            .better_load(deps.as_ref().storage, &"another_key")
+            .unwrap_err();
+
+        assert_eq!(
+            err,
+            StdError::generic_err(
+                "Unable to load key another_key on Map with namespace map_namespace"
+            )
+        )
     }
 }
