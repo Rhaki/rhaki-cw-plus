@@ -1,5 +1,6 @@
-pub use cw_multi_test;
 pub use anyhow;
+use cw20::MinterResponse;
+pub use cw_multi_test;
 
 use std::fmt::{self, Debug, Display};
 
@@ -16,7 +17,6 @@ use cw_multi_test::{
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 
-
 // use anyhow::Result as AnyResult;
 
 use crate::{
@@ -25,7 +25,6 @@ use crate::{
 };
 
 const BENCH32_PREFIX: &str = "cosmos";
-
 
 pub type Bech32App = App<BankKeeper, MockApiBech32>;
 
@@ -116,12 +115,7 @@ pub fn create_code_with_reply<
 
 pub trait Bech32AppExt {
     fn increase_time(&mut self, seconds: u64);
-    fn mint<A: Into<AssetPrecisioned>>(
-        &mut self,
-        minter: impl Into<String>,
-        to: impl Into<String>,
-        amount: A,
-    );
+    fn mint<A: Into<AssetPrecisioned>>(&mut self, to: impl Into<String>, amount: A);
     fn qy_balance(
         &mut self,
         address: &Addr,
@@ -134,12 +128,7 @@ impl Bech32AppExt for Bech32App {
         self.update_block(|block_info| block_info.time = block_info.time.plus_seconds(seconds))
     }
 
-    fn mint<A: Into<AssetPrecisioned>>(
-        &mut self,
-        minter: impl Into<String>,
-        to: impl Into<String>,
-        asset: A,
-    ) {
+    fn mint<A: Into<AssetPrecisioned>>(&mut self, to: impl Into<String>, asset: A) {
         let asset: AssetPrecisioned = asset.into();
         let amount = asset.amount_raw();
         match &asset.info() {
@@ -151,8 +140,14 @@ impl Bech32AppExt for Bech32App {
                 .unwrap();
             }
             cw_asset::AssetInfoBase::Cw20(cw20) => {
+                let minter = self
+                    .wrap()
+                    .query_wasm_smart::<MinterResponse>(cw20, &cw20::Cw20QueryMsg::Minter {})
+                    .unwrap()
+                    .minter;
+
                 self.execute_contract(
-                    Into::<String>::into(minter).into_unchecked_addr(),
+                    minter.into_unchecked_addr(),
                     cw20.clone(),
                     &cw20::Cw20ExecuteMsg::Mint {
                         recipient: to.into(),

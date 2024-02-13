@@ -160,8 +160,8 @@ impl AssetInfoPrecisioned {
         }
     }
 
-    pub fn to_asset(&self, amount: AssetAmount) -> AssetPrecisioned {
-        AssetPrecisioned::new(self.clone(), amount)
+    pub fn to_asset(&self, amount: impl Into<AssetAmount>) -> AssetPrecisioned {
+        AssetPrecisioned::new(self.clone(), amount.into())
     }
 
     pub fn from_str(value: &str) -> StdResult<AssetInfoPrecisioned> {
@@ -310,17 +310,22 @@ impl AssetPrecisioned {
             .into_std_result()
     }
 
-    pub fn send_msg<T: Serialize>(&self, contract_addr: &Addr, msg: T) -> StdResult<CosmosMsg> {
+    pub fn send_msg<N: Serialize, C: Serialize>(
+        &self,
+        contract_addr: &Addr,
+        native_msg: N,
+        cw20_msg: C,
+    ) -> StdResult<CosmosMsg> {
         match self.info() {
             AssetInfo::Native(_) => {
-                WasmMsg::build_execute(contract_addr, msg, vec![self.clone().try_into()?])
+                WasmMsg::build_execute(contract_addr, native_msg, vec![self.clone().try_into()?])
             }
             AssetInfo::Cw20(addr) => WasmMsg::build_execute(
                 addr,
                 cw20::Cw20ExecuteMsg::Send {
                     contract: contract_addr.to_string(),
                     amount: self.amount,
-                    msg: msg.into_binary()?,
+                    msg: cw20_msg.into_binary()?,
                 },
                 vec![],
             ),
