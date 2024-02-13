@@ -214,7 +214,7 @@ pub mod interfaces {
     use std::fmt::Display;
 
     use cosmwasm_std::{StdError, StdResult, Storage};
-    use cw_storage_plus::{Item, KeyDeserialize, Map, PrimaryKey};
+    use cw_storage_plus::{Item, Map, PrimaryKey};
     use serde::{de::DeserializeOwned, Serialize};
 
     pub trait ItemInterface: Sized + Serialize + DeserializeOwned {
@@ -249,7 +249,7 @@ pub mod interfaces {
     impl<'a, K, V> MapExt for Map<'a, K, V>
     where
         V: Serialize + DeserializeOwned + Clone,
-        K: PrimaryKey<'a> + KeyDeserialize + Display + Clone + 'static,
+        K: PrimaryKey<'a> + Display + Clone,
     {
         type K = K;
         type V = V;
