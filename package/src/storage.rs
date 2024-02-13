@@ -243,7 +243,7 @@ pub mod interfaces {
     pub trait MapExt {
         type K;
         type V;
-        fn better_load(&self, storage: &dyn Storage, key: &Self::K) -> StdResult<Self::V>;
+        fn better_load(&self, storage: &dyn Storage, key: Self::K) -> StdResult<Self::V>;
     }
 
     impl<'a, K, V> MapExt for Map<'a, K, V>
@@ -254,7 +254,7 @@ pub mod interfaces {
         type K = K;
         type V = V;
 
-        fn better_load(&self, storage: &dyn Storage, key: &Self::K) -> StdResult<Self::V> {
+        fn better_load(&self, storage: &dyn Storage, key: Self::K) -> StdResult<Self::V> {
             self.load(storage, key.clone()).map_err(|_| {
                 StdError::generic_err(format!(
                     "Unable to load key {} on Map with namespace {}",
@@ -346,7 +346,7 @@ mod test {
     fn test_intefrace() {
         let mut deps = mock_dependencies();
 
-        let mut config = TestConfig {
+        let config = TestConfig {
             some_value: "foo".to_string(),
             another_value: 0,
         };
