@@ -231,7 +231,7 @@ pub mod interfaces {
             })
         }
 
-        fn save(&mut self, storage: &mut dyn Storage) -> StdResult<()> {
+        fn save(&self, storage: &mut dyn Storage) -> StdResult<()> {
             Self::item().save(storage, &self)
         }
 
