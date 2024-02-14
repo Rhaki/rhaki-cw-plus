@@ -1,4 +1,8 @@
-use std::{any::type_name, collections::HashMap};
+use std::{
+    any::type_name,
+    collections::HashMap,
+    fmt::{write, Display},
+};
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
@@ -198,6 +202,12 @@ impl AssetInfoPrecisioned {
     }
 }
 
+impl Display for AssetInfoPrecisioned {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} - P: {}", self.info, self.precision)
+    }
+}
+
 impl Into<AssetInfo> for AssetInfoPrecisioned {
     fn into(self) -> AssetInfo {
         self.info
@@ -343,6 +353,14 @@ impl AssetPrecisioned {
 
     pub fn as_asset(&self) -> Asset {
         self.clone().into()
+    }
+}
+
+impl Display for AssetPrecisioned {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{}", self.info)?;
+        writeln!(f, "humanized: {}", self.amount_precisioned().unwrap())?;
+        write!(f, "precisionless: {}", self.amount_raw())
     }
 }
 
