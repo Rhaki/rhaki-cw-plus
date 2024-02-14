@@ -13,6 +13,7 @@ use cw_storage_plus::{Key, KeyDeserialize, Prefixer, PrimaryKey};
 use serde::Serialize;
 
 use crate::{
+    math::IntoDecimal,
     traits::{IntoBinary, IntoStdResult, Wrapper},
     wasm::WasmMsgBuilder,
 };
@@ -276,17 +277,17 @@ pub struct AssetPrecisioned {
 }
 
 impl AssetPrecisioned {
-    pub fn new(info: AssetInfoPrecisioned, amount: AssetAmount) -> Self {
+    pub fn new(info: AssetInfoPrecisioned, amount: impl Into<AssetAmount>) -> Self {
         Self {
-            amount: amount.as_precisionless(info.precision),
+            amount: amount.into().as_precisionless(info.precision),
             info,
         }
     }
 
-    pub fn new_super(info: AssetInfo, precision: u8, amount: AssetAmount) -> Self {
+    pub fn new_super(info: AssetInfo, precision: u8, amount: impl Into<AssetAmount>) -> Self {
         Self {
             info: AssetInfoPrecisioned::new(info, precision),
-            amount: amount.as_precisionless(precision),
+            amount: amount.into().as_precisionless(precision),
         }
     }
 
@@ -310,8 +311,8 @@ impl AssetPrecisioned {
         &self.info
     }
 
-    pub fn set_amount(&mut self, new_amount: AssetAmount) {
-        self.amount = new_amount.as_precisionless(self.precision())
+    pub fn set_amount(&mut self, new_amount: impl Into<AssetAmount>) {
+        self.amount = new_amount.into().as_precisionless(self.precision())
     }
 
     pub fn transfer_msg(&self, to: &Addr) -> StdResult<CosmosMsg> {
@@ -344,15 +345,32 @@ impl AssetPrecisioned {
         .map(|msg| msg.into())
     }
 
-    pub fn clone_with_amount<T: Into<AssetAmount>>(&self, amount: T) -> Self {
+    pub fn clone_with_amount(&self, amount: impl Into<AssetAmount>) -> Self {
         Self {
-            amount: Into::<AssetAmount>::into(amount).as_precisionless(self.precision()),
+            amount: amount.into().as_precisionless(self.precision()),
             info: self.info.clone(),
         }
     }
 
     pub fn as_asset(&self) -> Asset {
         self.clone().into()
+    }
+
+    pub fn compute_value_raw(
+        &self,
+        humanized_price: Decimal,
+        precision_modifier: Option<u8>,
+    ) -> Uint128 {
+        self.amount.mul_floor(
+            humanized_price
+                / 10_u128
+                    .pow((self.precision() - precision_modifier.unwrap_or(0)) as u32)
+                    .into_decimal(),
+        )
+    }
+
+    pub fn compute_humanized_value(&self, humanized_price: Decimal) -> Decimal {
+        self.amount_precisioned().unwrap() * humanized_price
     }
 }
 
@@ -430,4 +448,29 @@ impl From<Decimal> for AssetAmount {
     fn from(value: Decimal) -> Self {
         Self::Precisioned(value)
     }
+}
+
+#[test]
+fn t_1() {
+    let asset = AssetPrecisioned::new(
+        AssetInfoPrecisioned::native("uusd", 6),
+        "100".into_decimal(),
+    );
+
+    assert_eq!(
+        200_000_000_u128,
+        asset
+            .compute_value_raw("2".into_decimal(), 6.wrap_some())
+            .u128()
+    );
+
+    assert_eq!(
+        200_u128,
+        asset.compute_value_raw("2".into_decimal(), None).u128()
+    );
+
+    assert_eq!(
+        "200".into_decimal(),
+        asset.compute_humanized_value("2".into_decimal())
+    );
 }

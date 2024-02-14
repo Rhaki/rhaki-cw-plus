@@ -171,7 +171,7 @@ impl Bech32AppExt for Bech32App {
             .query_balance(&self.wrap(), address)
             .into_std_result()?;
 
-        AssetPrecisioned::new(asset.clone(), amount.into()).wrap_ok()
+        AssetPrecisioned::new(asset.clone(), amount).wrap_ok()
     }
 }
 
