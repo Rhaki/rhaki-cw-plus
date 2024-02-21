@@ -1,8 +1,4 @@
-use std::{
-    any::type_name,
-    collections::HashMap,
-    fmt::{write, Display},
-};
+use std::{any::type_name, collections::HashMap, fmt::Display};
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{

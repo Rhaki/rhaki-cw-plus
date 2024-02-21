@@ -27,7 +27,42 @@ pub struct ChainInfo {
     pub gas_adjustment: Decimal,
 }
 
-impl ChainInfo {
+impl Into<ChainInfoNoSeed> for ChainInfo {
+    fn into(self) -> ChainInfoNoSeed {
+        ChainInfoNoSeed {
+            chain_name: self.chain_name,
+            net: self.net,
+            grpc: self.grpc,
+            chain_prefix: self.chain_prefix,
+            account_index: self.account_index,
+            coin_type: self.coin_type,
+            gas_price: self.gas_price,
+            gas_denom: self.gas_denom,
+            gas_adjustment: self.gas_adjustment,
+        }
+    }
+}
+#[cw_serde]
+pub struct DataContainer<T> {
+    pub chain_info: ChainInfo,
+    pub data: T,
+}
+
+#[non_exhaustive]
+#[cw_serde]
+struct ChainInfoNoSeed {
+    pub chain_name: String,
+    pub net: NetType,
+    pub grpc: String,
+    pub chain_prefix: String,
+    pub account_index: u64,
+    pub coin_type: u64,
+    pub gas_price: Decimal,
+    pub gas_denom: String,
+    pub gas_adjustment: Decimal,
+}
+
+impl ChainInfoNoSeed {
     pub fn new(
         chain_name: &str,
         grpc: &str,
@@ -42,7 +77,6 @@ impl ChainInfo {
             chain_name: chain_name.to_string(),
             net: net_type,
             grpc: grpc.to_string(),
-            seed_phrase: "".to_string(),
             chain_prefix: chain_prefix.to_string(),
             account_index: 0,
             coin_type,
@@ -59,12 +93,31 @@ impl ChainInfo {
             self.chain_name
         )
     }
+    pub fn into_chain_info(self, seed_phrase: String) -> ChainInfo {
+        ChainInfo {
+            seed_phrase,
+            chain_name: self.chain_name,
+            net: self.net,
+            grpc: self.grpc,
+            chain_prefix: self.chain_prefix,
+            account_index: self.account_index,
+            coin_type: self.coin_type,
+            gas_price: self.gas_price,
+            gas_denom: self.gas_denom,
+            gas_adjustment: self.gas_adjustment,
+        }
+    }
 }
 
 #[cw_serde]
-pub struct DataContainer<T> {
-    pub chain_info: ChainInfo,
+struct DataContainerNoSeed<T> {
+    pub chain_info: ChainInfoNoSeed,
     pub data: T,
+}
+
+#[cw_serde]
+struct SeedPhrase {
+    pub seed_phrase: String,
 }
 
 impl<T> DataContainer<T>
@@ -72,11 +125,21 @@ where
     T: Deploier,
 {
     pub fn save_data(&self) -> StdResult<()> {
-        let prefix = self.chain_info.to_prefix();
+        let chain_info_no_seed: ChainInfoNoSeed = self.chain_info.clone().into();
+        let prefix = chain_info_no_seed.to_prefix();
+
+        let data_container_no_seed = DataContainerNoSeed {
+            chain_info: chain_info_no_seed,
+            data: &self.data,
+        };
 
         let mut path = PathBuf::from(std::env::current_dir().into_std_result()?);
-        path.push(format!("{}/config-{}.json", T::PATH_CONFIG, prefix));
-        std::fs::write(path, serde_json::to_string(&self).into_std_result()?).into_std_result()
+        path.push(format!("{}/config/{}.json", T::PATH_CONFIG, prefix));
+        std::fs::write(
+            path,
+            serde_json::to_string(&data_container_no_seed).into_std_result()?,
+        )
+        .into_std_result()
     }
 }
 
@@ -89,33 +152,74 @@ pub trait Deploier: Serialize + DeserializeOwned {
         let net = get_net_by_args();
         let prefix = format!("{}-{}", Into::<&str>::into(net.0), net.1);
 
-        let mut path = PathBuf::from(std::env::current_dir().into_std_result()?);
-        path.push(format!("{}/config-{}.json", Self::PATH_CONFIG, prefix));
-        let config = std::fs::read_to_string(path).into_std_result()?;
-        serde_json::from_str::<DataContainer<Self>>(&config).into_std_result()
+        let path = PathBuf::from(std::env::current_dir().into_std_result()?);
+
+        let mut path_data = path.clone();
+        let mut path_seed_phrase = path;
+
+        path_data.push(format!("{}/config/{}.json", Self::PATH_CONFIG, prefix));
+        let data = std::fs::read_to_string(path_data).into_std_result()?;
+        let data = serde_json::from_str::<DataContainerNoSeed<Self>>(&data).into_std_result()?;
+
+        path_seed_phrase.push(format!("{}/config/seed-{}.json", Self::PATH_CONFIG, prefix));
+        let seed = std::fs::read_to_string(path_seed_phrase).into_std_result()?;
+        let seed = serde_json::from_str::<SeedPhrase>(&seed).into_std_result()?;
+
+        Ok(DataContainer {
+            chain_info: data.chain_info.into_chain_info(seed.seed_phrase),
+            data: data.data,
+        })
     }
 
     fn generate(&self) -> StdResult<()> {
         let net = get_net_by_args();
 
-        let chain_info: ChainInfo = net.into();
+        let chain_info: ChainInfoNoSeed = net.into();
         let prefix = chain_info.to_prefix();
-        let container = DataContainer {
+        let container = DataContainerNoSeed {
             chain_info,
             data: self,
         };
 
+        let seed_phrase = SeedPhrase {
+            seed_phrase: "".to_string(),
+        };
+
+        // Check if folder config exists
         let mut path = PathBuf::from(std::env::current_dir().into_std_result()?);
-        path.push(format!("{}/config-{}.json", Self::PATH_CONFIG, prefix));
+        path.push(format!("{}/config", Self::PATH_CONFIG));
+
+        if !path.exists() {
+            std::fs::create_dir_all(path.clone()).into_std_result()?;
+        }
+
+        let mut path_data = path.clone();
+        let mut path_seed_phrase = path;
+
+        path_data.push(format!("./{}.json", prefix));
+
         let data = serde_json::to_string(&container).into_std_result()?;
-        std::fs::write(path.clone(), data)
+        std::fs::write(path_data.clone(), data)
             .into_std_result()
             .map_err(|_| {
                 StdError::generic_err(format!(
                     "invalid path on generate: {}",
-                    path.to_str().unwrap()
+                    path_data.to_str().unwrap()
                 ))
-            })
+            })?;
+
+        path_seed_phrase.push(format!("./seed-{}.json", prefix));
+        let data = serde_json::to_string(&seed_phrase).into_std_result()?;
+        std::fs::write(path_seed_phrase.clone(), data)
+            .into_std_result()
+            .map_err(|_| {
+                StdError::generic_err(format!(
+                    "invalid path on generate: {}",
+                    path_seed_phrase.to_str().unwrap()
+                ))
+            })?;
+
+        Ok(())
     }
 
     fn read_wasm_bytecode(&self, file_name: &str) -> StdResult<Vec<u8>> {
@@ -130,10 +234,10 @@ pub trait Deploier: Serialize + DeserializeOwned {
     }
 }
 
-impl From<(NetType, String)> for ChainInfo {
+impl From<(NetType, String)> for ChainInfoNoSeed {
     fn from(value: (NetType, String)) -> Self {
         match value.1.as_str() {
-            "terra" => ChainInfo::new(
+            "terra" => ChainInfoNoSeed::new(
                 value.1.as_str(),
                 match value.0 {
                     NetType::Mainnet => "https:/terra-grpc.polkachu.com:11790",
@@ -146,7 +250,7 @@ impl From<(NetType, String)> for ChainInfo {
                 "uluna",
                 "1.3".into_decimal(),
             ),
-            _ => ChainInfo::new(
+            _ => ChainInfoNoSeed::new(
                 value.1.as_str(),
                 "",
                 value.0,
