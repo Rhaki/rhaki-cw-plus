@@ -446,6 +446,145 @@ impl From<Decimal> for AssetAmount {
     }
 }
 
+mod math {
+    use std::ops::{Add, Div, Mul, Sub};
+
+    use cosmwasm_std::{Decimal, StdError, StdResult};
+
+    use super::{AssetInfoPrecisioned, AssetPrecisioned};
+
+    fn validate_asset(
+        info: &AssetInfoPrecisioned,
+        rhs: &AssetInfoPrecisioned,
+        operation: impl Into<String>,
+    ) -> StdResult<()> {
+        if &info != &rhs {
+            Err(StdError::generic_err(format!(
+                "{} cannot be performed between {} and {}",
+                operation.into(),
+                info,
+                rhs
+            )))
+        } else {
+            Ok(())
+        }
+    }
+
+    impl Add for AssetPrecisioned {
+        type Output = Self;
+
+        fn add(self, rhs: Self) -> Self::Output {
+            validate_asset(&self.info, &rhs.info, "Add").unwrap();
+            let amount = self.amount_raw();
+            AssetPrecisioned::new(self.info, amount + rhs.amount_raw())
+        }
+    }
+
+    impl Add for &AssetPrecisioned {
+        type Output = AssetPrecisioned;
+
+        fn add(self, rhs: Self) -> Self::Output {
+            validate_asset(&self.info, &rhs.info, "Add").unwrap();
+            let amount = self.amount_raw();
+            AssetPrecisioned::new(self.info.clone(), amount + rhs.amount_raw())
+        }
+    }
+
+    impl Sub for AssetPrecisioned {
+        type Output = Self;
+
+        fn sub(self, rhs: Self) -> Self::Output {
+            validate_asset(&self.info, &rhs.info, "Sub").unwrap();
+            let amount = self.amount_raw();
+            AssetPrecisioned::new(self.info, amount - rhs.amount_raw())
+        }
+    }
+
+    impl Sub for &AssetPrecisioned {
+        type Output = AssetPrecisioned;
+
+        fn sub(self, rhs: Self) -> Self::Output {
+            validate_asset(&self.info, &rhs.info, "Sub").unwrap();
+            let amount = self.amount_raw();
+            AssetPrecisioned::new(self.info.clone(), amount - rhs.amount_raw())
+        }
+    }
+
+    impl Mul for AssetPrecisioned {
+        type Output = Self;
+
+        fn mul(self, rhs: Self) -> Self::Output {
+            validate_asset(&self.info, &rhs.info, "Mul").unwrap();
+            let amount = self.amount_raw();
+            AssetPrecisioned::new(self.info, amount * rhs.amount_raw())
+        }
+    }
+
+    impl Mul for &AssetPrecisioned {
+        type Output = AssetPrecisioned;
+
+        fn mul(self, rhs: Self) -> Self::Output {
+            validate_asset(&self.info, &rhs.info, "Mul").unwrap();
+            let amount = self.amount_raw();
+            AssetPrecisioned::new(self.info.clone(), amount * rhs.amount_raw())
+        }
+    }
+
+    impl Mul<Decimal> for AssetPrecisioned {
+        type Output = Self;
+
+        fn mul(self, rhs: Decimal) -> Self::Output {
+            let amount = self.amount_precisioned().unwrap();
+            AssetPrecisioned::new(self.info, amount * rhs)
+        }
+    }
+
+    impl Mul<Decimal> for &AssetPrecisioned {
+        type Output = AssetPrecisioned;
+
+        fn mul(self, rhs: Decimal) -> Self::Output {
+            let amount = self.amount_precisioned().unwrap();
+            AssetPrecisioned::new(self.info.clone(), amount * rhs)
+        }
+    }
+
+    impl Div for AssetPrecisioned {
+        type Output = Self;
+        fn div(self, rhs: Self) -> Self::Output {
+            validate_asset(&self.info, &rhs.info, "Div").unwrap();
+            let amount = self.amount_raw();
+            AssetPrecisioned::new(self.info, amount / rhs.amount_raw())
+        }
+    }
+
+    impl Div for &AssetPrecisioned {
+        type Output = AssetPrecisioned;
+        fn div(self, rhs: Self) -> Self::Output {
+            validate_asset(&self.info, &rhs.info, "Div").unwrap();
+            let amount = self.amount_raw();
+            AssetPrecisioned::new(self.info.clone(), amount / rhs.amount_raw())
+        }
+    }
+
+    impl Div<Decimal> for AssetPrecisioned {
+        type Output = Self;
+
+        fn div(self, rhs: Decimal) -> Self::Output {
+            let amount = self.amount_precisioned().unwrap();
+            AssetPrecisioned::new(self.info, amount / rhs)
+        }
+    }
+
+    impl Div<Decimal> for &AssetPrecisioned {
+        type Output = AssetPrecisioned;
+
+        fn div(self, rhs: Decimal) -> Self::Output {
+            let amount = self.amount_precisioned().unwrap();
+            AssetPrecisioned::new(self.info.clone(), amount / rhs)
+        }
+    }
+}
+
 #[test]
 fn t_1() {
     let asset = AssetPrecisioned::new(
@@ -468,5 +607,28 @@ fn t_1() {
     assert_eq!(
         "200".into_decimal(),
         asset.compute_humanized_value("2".into_decimal())
+    );
+}
+
+#[test]
+fn math() {
+    let asset = AssetInfoPrecisioned::native("eth", 18);
+
+    let a = AssetPrecisioned::new(asset.clone(), "100".into_decimal());
+    let b = AssetPrecisioned::new(asset.clone(), "200".into_decimal());
+
+    assert_eq!(
+        AssetPrecisioned::new(asset.clone(), "300".into_decimal()),
+        &a + &b
+    );
+
+    assert_eq!(
+        AssetPrecisioned::new(asset.clone(), "100".into_decimal()),
+        &b - &a
+    );
+
+    assert_eq!(
+        AssetPrecisioned::new(asset.clone(), "400".into_decimal()),
+        &b * "2".into_decimal()
     );
 }
