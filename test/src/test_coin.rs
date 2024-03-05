@@ -82,6 +82,4 @@ fn asset() {
     println!("{one}");
     println!("{two}");
     println!("{three}")
-
-
 }

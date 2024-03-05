@@ -451,7 +451,38 @@ mod math {
 
     use cosmwasm_std::{Decimal, StdError, StdResult};
 
-    use super::{AssetInfoPrecisioned, AssetPrecisioned};
+    use super::{AssetAmount, AssetInfoPrecisioned, AssetPrecisioned};
+
+    macro_rules! forward_ref_binop_clone {
+        (impl $imp:ident, $method:ident for $t:ty, $u:ty) => {
+            impl<'a> $imp<$u> for &'a $t {
+                type Output = <$t as $imp<$u>>::Output;
+
+                #[inline]
+                fn $method(self, other: $u) -> <$t as $imp<$u>>::Output {
+                    $imp::$method(self.clone(), other)
+                }
+            }
+
+            impl $imp<&$u> for $t {
+                type Output = <$t as $imp<$u>>::Output;
+
+                #[inline]
+                fn $method(self, other: &$u) -> <$t as $imp<$u>>::Output {
+                    $imp::$method(self, other.clone())
+                }
+            }
+
+            impl $imp<&$u> for &$t {
+                type Output = <$t as $imp<$u>>::Output;
+
+                #[inline]
+                fn $method(self, other: &$u) -> <$t as $imp<$u>>::Output {
+                    $imp::$method(self.clone(), other.clone())
+                }
+            }
+        };
+    }
 
     fn validate_asset(
         info: &AssetInfoPrecisioned,
@@ -480,15 +511,33 @@ mod math {
         }
     }
 
-    impl Add for &AssetPrecisioned {
-        type Output = AssetPrecisioned;
+    impl<T> Add<T> for AssetPrecisioned
+    where
+        T: Into<AssetAmount>,
+    {
+        type Output = Self;
 
-        fn add(self, rhs: Self) -> Self::Output {
-            validate_asset(&self.info, &rhs.info, "Add").unwrap();
-            let amount = self.amount_raw();
-            AssetPrecisioned::new(self.info.clone(), amount + rhs.amount_raw())
+        fn add(self, rhs: T) -> Self::Output {
+            self.clone_with_amount(
+                self.amount_raw() + rhs.into().as_precisionless(self.precision()),
+            )
         }
     }
+
+    impl<T> Add<T> for &AssetPrecisioned
+    where
+        T: Into<AssetAmount>,
+    {
+        type Output = AssetPrecisioned;
+
+        fn add(self, rhs: T) -> Self::Output {
+            self.clone_with_amount(
+                self.amount_raw() + rhs.into().as_precisionless(self.precision()),
+            )
+        }
+    }
+
+    forward_ref_binop_clone!(impl Add, add for AssetPrecisioned, AssetPrecisioned);
 
     impl Sub for AssetPrecisioned {
         type Output = Self;
@@ -500,15 +549,33 @@ mod math {
         }
     }
 
-    impl Sub for &AssetPrecisioned {
-        type Output = AssetPrecisioned;
+    impl<T> Sub<T> for AssetPrecisioned
+    where
+        T: Into<AssetAmount>,
+    {
+        type Output = Self;
 
-        fn sub(self, rhs: Self) -> Self::Output {
-            validate_asset(&self.info, &rhs.info, "Sub").unwrap();
-            let amount = self.amount_raw();
-            AssetPrecisioned::new(self.info.clone(), amount - rhs.amount_raw())
+        fn sub(self, rhs: T) -> Self::Output {
+            self.clone_with_amount(
+                self.amount_raw() - rhs.into().as_precisionless(self.precision()),
+            )
         }
     }
+
+    impl<T> Sub<T> for &AssetPrecisioned
+    where
+        T: Into<AssetAmount>,
+    {
+        type Output = AssetPrecisioned;
+
+        fn sub(self, rhs: T) -> Self::Output {
+            self.clone_with_amount(
+                self.amount_raw() - rhs.into().as_precisionless(self.precision()),
+            )
+        }
+    }
+
+    forward_ref_binop_clone!(impl Sub, sub for AssetPrecisioned, AssetPrecisioned);
 
     impl Mul for AssetPrecisioned {
         type Output = Self;
@@ -517,16 +584,6 @@ mod math {
             validate_asset(&self.info, &rhs.info, "Mul").unwrap();
             let amount = self.amount_raw();
             AssetPrecisioned::new(self.info, amount * rhs.amount_raw())
-        }
-    }
-
-    impl Mul for &AssetPrecisioned {
-        type Output = AssetPrecisioned;
-
-        fn mul(self, rhs: Self) -> Self::Output {
-            validate_asset(&self.info, &rhs.info, "Mul").unwrap();
-            let amount = self.amount_raw();
-            AssetPrecisioned::new(self.info.clone(), amount * rhs.amount_raw())
         }
     }
 
@@ -539,14 +596,8 @@ mod math {
         }
     }
 
-    impl Mul<Decimal> for &AssetPrecisioned {
-        type Output = AssetPrecisioned;
-
-        fn mul(self, rhs: Decimal) -> Self::Output {
-            let amount = self.amount_precisioned().unwrap();
-            AssetPrecisioned::new(self.info.clone(), amount * rhs)
-        }
-    }
+    forward_ref_binop_clone!(impl Mul, mul for AssetPrecisioned, AssetPrecisioned);
+    forward_ref_binop_clone!(impl Mul, mul for AssetPrecisioned, Decimal);
 
     impl Div for AssetPrecisioned {
         type Output = Self;
@@ -554,15 +605,6 @@ mod math {
             validate_asset(&self.info, &rhs.info, "Div").unwrap();
             let amount = self.amount_raw();
             AssetPrecisioned::new(self.info, amount / rhs.amount_raw())
-        }
-    }
-
-    impl Div for &AssetPrecisioned {
-        type Output = AssetPrecisioned;
-        fn div(self, rhs: Self) -> Self::Output {
-            validate_asset(&self.info, &rhs.info, "Div").unwrap();
-            let amount = self.amount_raw();
-            AssetPrecisioned::new(self.info.clone(), amount / rhs.amount_raw())
         }
     }
 
@@ -575,14 +617,8 @@ mod math {
         }
     }
 
-    impl Div<Decimal> for &AssetPrecisioned {
-        type Output = AssetPrecisioned;
-
-        fn div(self, rhs: Decimal) -> Self::Output {
-            let amount = self.amount_precisioned().unwrap();
-            AssetPrecisioned::new(self.info.clone(), amount / rhs)
-        }
-    }
+    forward_ref_binop_clone!(impl Div, div for AssetPrecisioned, AssetPrecisioned);
+    forward_ref_binop_clone!(impl Div, div for AssetPrecisioned, Decimal);
 }
 
 #[test]
@@ -630,5 +666,15 @@ fn math() {
     assert_eq!(
         AssetPrecisioned::new(asset.clone(), "400".into_decimal()),
         &b * "2".into_decimal()
+    );
+
+    assert_eq!(
+        AssetPrecisioned::new(asset.clone(), "200.000000000000000200".into_decimal()),
+        &b + 200_u128
+    );
+
+    assert_eq!(
+        AssetPrecisioned::new(asset.clone(), "400.000000000000000000".into_decimal()),
+        b + "200".into_decimal()
     );
 }

@@ -17,7 +17,14 @@ syn                = { version = "1", features = ["full", "printing", "extra-tra
 schemars           = { version = "0.8.3"   }
 forward_ref        = { version = "1.0.0"   }
 pyth-sdk-cw        = { version = "1.2.0"   }
+
 anyhow             = { version = "1.0.75"  }
+thiserror          = { version = "1.0.57"  }
+strum              = { version = "0.26.1"  }
+strum_macros       = { version = "0.26.1"  }
+prost              = { version = "0.12.3"  }
+
+osmosis-std        = { version = "0.22.0"  }
 
 tokio              = { version = "1", features = ["full"] }
 cosmos-grpc-client = "0.3.0"

@@ -10,7 +10,9 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 pub use serde_cw_value::Value;
 pub use serde_json::json;
 pub use serde_json::Value as StdValue;
-pub use serde_json_wasm::{from_str as sjw_from_str, to_string as sjw_to_string, to_vec as sjw_to_vec};
+pub use serde_json_wasm::{
+    from_str as sjw_from_str, to_string as sjw_to_string, to_vec as sjw_to_vec,
+};
 
 #[cw_serde]
 pub enum PathKey {

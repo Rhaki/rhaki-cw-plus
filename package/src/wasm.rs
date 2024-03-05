@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    instantiate2_address, Addr, Binary, Coin, CosmosMsg, Deps, ReplyOn, StdError,
-    StdResult, SubMsg, WasmMsg, to_json_binary,
+    instantiate2_address, to_json_binary, Addr, Binary, Coin, CosmosMsg, Deps, ReplyOn, StdError,
+    StdResult, SubMsg, WasmMsg,
 };
 use serde::Serialize;
 

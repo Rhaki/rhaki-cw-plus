@@ -1,8 +1,8 @@
 use quote::ToTokens;
-use syn::{parse_macro_input, DeriveInput, parse_quote};
+use syn::{parse_macro_input, parse_quote, DeriveInput};
 
 /// Similar to `cosmwasm_schema::cw_serde` but without the `schemars::JsonSchema` implementation.
-/// 
+///
 /// Usefull on struct that use `rhaki_cw_utils::Value` (or `serde_cw_value::Value`)
 #[proc_macro_attribute]
 pub fn cw_serde_value(
