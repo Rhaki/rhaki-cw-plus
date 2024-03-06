@@ -401,6 +401,18 @@ impl TryInto<Coin> for AssetPrecisioned {
     }
 }
 
+impl PartialOrd for AssetPrecisioned {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        if self.amount_raw() > other.amount_raw() {
+            Some(std::cmp::Ordering::Greater)
+        } else if self.amount_raw() < other.amount_raw() {
+            Some(std::cmp::Ordering::Less)
+        } else {
+            Some(std::cmp::Ordering::Equal)
+        }
+    }
+}
+
 /// Input type for [AssetPrecisioned]. Implement [Into] and [From] for different data type
 #[cw_serde]
 pub enum AssetAmount {
@@ -644,6 +656,15 @@ fn t_1() {
         "200".into_decimal(),
         asset.compute_humanized_value("2".into_decimal())
     );
+
+    let smaller = AssetPrecisioned::new_super(AssetInfo::native("uluna"), 6, 100);
+    let greater = AssetPrecisioned::new_super(AssetInfo::native("uluna"), 6, 200);
+
+    assert!(smaller < greater);
+    assert!(greater > smaller);
+    assert!(greater == greater.clone());
+
+
 }
 
 #[test]
