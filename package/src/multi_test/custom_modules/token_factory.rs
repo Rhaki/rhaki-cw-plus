@@ -146,10 +146,10 @@ impl CTokenFactory {
                         amount: fee_creation.fee.clone(),
                     }),
                 )
-                .map_err(|e| anyhow::anyhow!("Error on gather fee for denom creation: {}", e))?;
+                .map_err(|e| anyhow::anyhow!("Error on gather fee for denom creation: {}", e))
+        } else {
+            Ok(AppResponse::default())
         }
-
-        Ok(AppResponse::default())
     }
 
     pub fn run_burn_denom<ExecC, QueryC: CustomQuery>(
