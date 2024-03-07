@@ -1,6 +1,6 @@
 [package]
 name                = "rhaki-cw-plus"
-version             = "1.0.1"
+version             = "1.0.2"
 edition             = "2021"
 license             = "Apache-2.0"
 authors             = ["Rhaki"]
@@ -11,7 +11,7 @@ repository          = "https://github.com/Rhaki/rhaki-cw-plus"
 default = []
 multi-test          = ["dep:cw-multi-test", "dep:anyhow", "dep:thiserror", "dep:strum", "dep:strum_macros"]
 deploy              = ["dep:cosmos-grpc-client", "dep:tokio", "dep:async-trait"]
-osmosis             = ["multi-test", "dep:osmosis-std"]
+osmosis             = ["multi-test", "dep:osmosis-std", "dep:prost"]
 
 [dependencies]
 rhaki-cw-plus-macro = { path = "../macros", version = "0.1.0" }
