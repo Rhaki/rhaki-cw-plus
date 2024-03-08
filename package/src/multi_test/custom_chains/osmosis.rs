@@ -1,7 +1,8 @@
-use std::{cell::RefCell, rc::Rc, str::FromStr};
+use std::str::FromStr;
 
-use crate::multi_test::custom_app::CModuleWrapper;
+use crate::multi_test::custom_app::{CModuleWrapper, ModuleDb};
 use crate::multi_test::helper::{bench32_app_builder, DefaultWasmKeeper, FailingCustom};
+
 use cosmwasm_std::testing::MockStorage;
 use cosmwasm_std::{Addr, Api, Binary, BlockInfo, Empty, Querier, Storage, Uint128};
 use cw_multi_test::addons::MockApiBech32;
@@ -14,9 +15,8 @@ use osmosis_std::types::osmosis::tokenfactory::v1beta1::{MsgBurn, MsgCreateDenom
 use prost::Message;
 use strum_macros::EnumString;
 
-pub struct OsmosisStargateModule {
-    db: Rc<RefCell<CModuleWrapper>>,
-}
+#[derive(Default)]
+pub struct OsmosisStargateModule {}
 
 #[derive(EnumString)]
 #[strum(ascii_case_insensitive)]
@@ -43,12 +43,11 @@ enum OsmosisStargateExecuteUrls {
 pub fn build_osmosis_modules() -> (
     FailingModule<Empty, Empty, Empty>,
     OsmosisStargateModule,
-    Rc<RefCell<CModuleWrapper>>,
+    CModuleWrapper,
 ) {
-    let db = CModuleWrapper::new();
     let custom_module = FailingModule::default();
-    let ibc_module = OsmosisStargateModule { db: db.clone() };
-    (custom_module, ibc_module, db)
+    let ibc_module = OsmosisStargateModule::default();
+    (custom_module, ibc_module, CModuleWrapper::default())
 }
 
 pub fn build_osmosis_app() -> (
@@ -64,7 +63,7 @@ pub fn build_osmosis_app() -> (
         GovFailingModule,
         OsmosisStargateModule,
     >,
-    Rc<RefCell<CModuleWrapper>>,
+    CModuleWrapper,
 ) {
     let (_, ibc_module, db) = build_osmosis_modules();
     (
@@ -101,41 +100,50 @@ impl Stargate for OsmosisStargateModule {
             OsmosisStargateExecuteUrls::MsgMint => {
                 let msg = MsgMint::decode(value.as_slice())?;
                 let coin = msg.amount.ok_or(anyhow!("amount not found"))?;
-                self.db.borrow_mut().token_factory.run_msg_mint(
-                    api,
-                    storage,
-                    router,
-                    block,
-                    sender,
-                    coin.denom,
-                    Uint128::from_str(&coin.amount)?,
-                    msg.mint_to_address,
-                )
+
+                CModuleWrapper::use_db(storage, |db, storage| {
+                    db.token_factory.run_msg_mint(
+                        api,
+                        storage,
+                        router,
+                        block,
+                        sender,
+                        coin.denom,
+                        Uint128::from_str(&coin.amount)?,
+                        msg.mint_to_address,
+                    )
+                })?
             }
             OsmosisStargateExecuteUrls::MsgCreateDenom => {
                 let msg = MsgCreateDenom::decode(value.as_slice())?;
-                self.db.borrow_mut().token_factory.run_create_denom(
-                    api,
-                    storage,
-                    router,
-                    block,
-                    sender,
-                    msg.subdenom,
-                )
+
+                CModuleWrapper::use_db(storage, |db, storage| {
+                    db.token_factory.run_create_denom(
+                        api,
+                        storage,
+                        router,
+                        block,
+                        sender,
+                        msg.subdenom,
+                    )
+                })?
             }
             OsmosisStargateExecuteUrls::MsgBrun => {
                 let msg = MsgBurn::decode(value.as_slice())?;
                 let coin = msg.amount.ok_or(anyhow!("amount not found"))?;
-                self.db.borrow_mut().token_factory.run_burn_denom(
-                    api,
-                    storage,
-                    router,
-                    block,
-                    sender,
-                    coin.denom,
-                    Uint128::from_str(&coin.amount)?,
-                    msg.burn_from_address,
-                )
+
+                CModuleWrapper::use_db(storage, |db, storage| {
+                    db.token_factory.run_burn_denom(
+                        api,
+                        storage,
+                        router,
+                        block,
+                        sender,
+                        coin.denom,
+                        Uint128::from_str(&coin.amount)?,
+                        msg.burn_from_address,
+                    )
+                })?
             }
         }
     }
@@ -166,7 +174,10 @@ mod test {
     use super::build_osmosis_app;
     use crate::{
         asset::{AssetInfoPrecisioned, AssetPrecisioned},
-        multi_test::helper::{AppExt, Bench32AppExt},
+        multi_test::{
+            custom_app::ModuleDb,
+            helper::{AppExt, Bench32AppExt, UnwrapError},
+        },
         traits::Wrapper,
     };
 
@@ -175,7 +186,7 @@ mod test {
         // db is the internal state of the custom module.
         // It's a Rc<RefCell<CModuleWrapper>>, so is possilbe to safely borrow it to change it state without executing msg.
         // This is usefull to set params that can't be done with msgs (like set fee for token creation)
-        let (mut app, db) = build_osmosis_app();
+        let (mut app, mut db) = build_osmosis_app();
 
         let minter = app.generate_addr("minter");
         let to = app.generate_addr("to");
@@ -189,12 +200,11 @@ mod test {
         let fee = AssetPrecisioned::new_super(AssetInfo::native("uluna"), 6, 100_u128);
         let fee_collector = app.generate_addr("token_factory_collector");
 
-        // Mint fee token creation to minter
-        app.mint(&minter, fee.clone());
-
-        db.borrow_mut()
-            .token_factory
-            .set_fee_creation(vec![fee.try_into().unwrap()], fee_collector.clone());
+        db.as_db(app.storage_mut(), |db, _| {
+            db.token_factory
+                .set_fee_creation(vec![Coin::new(100, "uluna")], fee_collector.clone())
+        })
+        .unwrap();
 
         // Create denom
 
@@ -208,6 +218,12 @@ mod test {
             type_url: msg_create_denom.type_url,
             value: Binary::from(msg_create_denom.value),
         };
+
+        app.execute(minter.clone(), msg_create_denom.clone())
+            .unwrap_err_contains("Error on gather fee for denom creation");
+
+        // Mint fee token creation to minter
+        app.mint(&minter, fee.clone());
 
         app.execute(minter.clone(), msg_create_denom).unwrap();
 

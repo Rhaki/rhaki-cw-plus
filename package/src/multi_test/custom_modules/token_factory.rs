@@ -1,4 +1,5 @@
 use anyhow::Result as AnyResult;
+use cosmwasm_schema::cw_serde;
 use cw_multi_test::{AppResponse, BankSudo, CosmosRouter, SudoMsg};
 use std::{collections::BTreeMap, vec};
 use thiserror::Error;
@@ -26,12 +27,14 @@ pub enum TokenFactoryError {
 
 pub type TokenFactoryResult<T> = Result<T, TokenFactoryError>;
 
+#[cw_serde]
 pub struct CTokenFactoryFee {
     pub fee: Vec<Coin>,
     pub fee_collector: Addr,
 }
 
 #[derive(Default)]
+#[cw_serde]
 pub struct CTokenFactory {
     pub fee_creation: Option<CTokenFactoryFee>,
     pub token_precisions: BTreeMap<String, u8>,
