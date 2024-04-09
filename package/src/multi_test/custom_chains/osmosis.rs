@@ -36,10 +36,10 @@ enum OsmosisStargateExecuteUrls {
     #[strum(serialize = "/osmosis.tokenfactory.v1beta1.MsgCreateDenom")]
     MsgCreateDenom,
     #[strum(serialize = "/osmosis.tokenfactory.v1beta1.MsgBurn")]
-    MsgBrun,
+    MsgBurn,
     #[strum(serialize = "/osmosis.tokenfactory.v1beta1.MsgSetDenomMetadata")]
     MsgSetDenomMetadata,
-    #[strum(serialize = " /osmosis.tokenfactory.v1beta1.MsgChangeAdmin")]
+    #[strum(serialize = "/osmosis.tokenfactory.v1beta1.MsgChangeAdmin")]
     MsgChangeAdmin,
 }
 
@@ -103,7 +103,9 @@ impl Stargate for OsmosisStargateModule {
             + 'static,
         QueryC: cosmwasm_std::CustomQuery + serde::de::DeserializeOwned + 'static,
     {
-        match OsmosisStargateExecuteUrls::from_str(&type_url)? {
+        match OsmosisStargateExecuteUrls::from_str(&type_url)
+            .map_err(|_| anyhow!("type_url not handled on OsmosisStargateModule: {type_url}"))?
+        {
             OsmosisStargateExecuteUrls::MsgMint => {
                 let msg = MsgMint::decode(value.as_slice())?;
                 let coin = msg.amount.ok_or(anyhow!("amount not found"))?;
@@ -147,7 +149,7 @@ impl Stargate for OsmosisStargateModule {
 
                 Ok(response)
             }
-            OsmosisStargateExecuteUrls::MsgBrun => {
+            OsmosisStargateExecuteUrls::MsgBurn => {
                 let msg = MsgBurn::decode(value.as_slice())?;
                 let coin = msg.amount.ok_or(anyhow!("amount not found"))?;
 
