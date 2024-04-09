@@ -127,7 +127,7 @@ impl CTokenFactory {
         block: &BlockInfo,
         sender: Addr,
         sub_denom: String,
-    ) -> AnyResult<AppResponse> {
+    ) -> AnyResult<RunCreateDenomResponse> {
         let denom = self.build_denom(&sender, &sub_denom);
         if self.supplies.get(&denom).is_some() {
             return Err(TokenFactoryError::DenomAlredyExisting {
@@ -137,7 +137,7 @@ impl CTokenFactory {
 
         self.supplies.insert(denom.clone(), Uint128::zero());
 
-        if let Some(fee_creation) = &self.fee_creation {
+        let response = if let Some(fee_creation) = &self.fee_creation {
             router
                 .execute(
                     api,
@@ -149,10 +149,12 @@ impl CTokenFactory {
                         amount: fee_creation.fee.clone(),
                     }),
                 )
-                .map_err(|e| anyhow::anyhow!("Error on gather fee for denom creation: {}", e))
+                .map_err(|e| anyhow::anyhow!("Error on gather fee for denom creation: {}", e))?
         } else {
-            Ok(AppResponse::default())
-        }
+            AppResponse::default()
+        };
+
+        Ok(RunCreateDenomResponse { response, denom })
     }
 
     pub fn run_burn_denom<ExecC, QueryC: CustomQuery>(
@@ -190,4 +192,9 @@ impl CTokenFactory {
             }),
         )
     }
+}
+
+pub struct RunCreateDenomResponse {
+    pub response: AppResponse,
+    pub denom: String,
 }

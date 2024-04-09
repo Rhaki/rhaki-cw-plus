@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use crate::multi_test::custom_app::{CModuleWrapper, ModuleDb};
+use crate::multi_test::custom_modules::token_factory::RunCreateDenomResponse;
 use crate::multi_test::helper::{bench32_app_builder, DefaultWasmKeeper, FailingCustom};
 
 use cosmwasm_std::testing::MockStorage;
@@ -11,7 +12,9 @@ use cw_multi_test::{
     no_init, App, AppResponse, BankKeeper, CosmosRouter, DistributionKeeper, FailingModule,
     GovFailingModule, IbcFailingModule, StakeKeeper, Stargate,
 };
-use osmosis_std::types::osmosis::tokenfactory::v1beta1::{MsgBurn, MsgCreateDenom, MsgMint};
+use osmosis_std::types::osmosis::tokenfactory::v1beta1::{
+    MsgBurn, MsgCreateDenom, MsgCreateDenomResponse, MsgMint,
+};
 use prost::Message;
 use strum_macros::EnumString;
 
@@ -117,7 +120,10 @@ impl Stargate for OsmosisStargateModule {
             OsmosisStargateExecuteUrls::MsgCreateDenom => {
                 let msg = MsgCreateDenom::decode(value.as_slice())?;
 
-                CModuleWrapper::use_db(storage, |db, storage| {
+                let RunCreateDenomResponse {
+                    mut response,
+                    denom,
+                } = CModuleWrapper::use_db(storage, |db, storage| {
                     db.token_factory.run_create_denom(
                         api,
                         storage,
@@ -126,7 +132,16 @@ impl Stargate for OsmosisStargateModule {
                         sender,
                         msg.subdenom,
                     )
-                })?
+                })??;
+
+                response.data = Some(Binary::from(
+                    MsgCreateDenomResponse {
+                        new_token_denom: denom,
+                    }
+                    .encode_to_vec(),
+                ));
+
+                Ok(response)
             }
             OsmosisStargateExecuteUrls::MsgBrun => {
                 let msg = MsgBurn::decode(value.as_slice())?;
