@@ -13,7 +13,7 @@ use cw_multi_test::{
     GovFailingModule, IbcFailingModule, StakeKeeper, Stargate,
 };
 use osmosis_std::types::osmosis::tokenfactory::v1beta1::{
-    MsgBurn, MsgCreateDenom, MsgCreateDenomResponse, MsgMint,
+    MsgBurn, MsgChangeAdmin, MsgCreateDenom, MsgCreateDenomResponse, MsgMint, MsgSetDenomMetadata,
 };
 use prost::Message;
 use strum_macros::EnumString;
@@ -37,6 +37,10 @@ enum OsmosisStargateExecuteUrls {
     MsgCreateDenom,
     #[strum(serialize = "/osmosis.tokenfactory.v1beta1.MsgBurn")]
     MsgBrun,
+    #[strum(serialize = "/osmosis.tokenfactory.v1beta1.MsgSetDenomMetadata")]
+    MsgSetDenomMetadata,
+    #[strum(serialize = " /osmosis.tokenfactory.v1beta1.MsgChangeAdmin")]
+    MsgChangeAdmin,
 }
 
 /// returns:
@@ -158,6 +162,22 @@ impl Stargate for OsmosisStargateModule {
                         Uint128::from_str(&coin.amount)?,
                         msg.burn_from_address,
                     )
+                })?
+            }
+            OsmosisStargateExecuteUrls::MsgSetDenomMetadata => {
+                let msg = MsgSetDenomMetadata::decode(value.as_slice())?;
+
+                CModuleWrapper::use_db(storage, |db, storage| {
+                    db.token_factory
+                        .run_set_denom_metadata(api, storage, router, block, sender, msg)
+                })?
+            }
+            OsmosisStargateExecuteUrls::MsgChangeAdmin => {
+                let msg = MsgChangeAdmin::decode(value.as_slice())?;
+
+                CModuleWrapper::use_db(storage, |db, storage| {
+                    db.token_factory
+                        .run_change_admin(api, storage, router, block, sender, msg)
                 })?
             }
         }

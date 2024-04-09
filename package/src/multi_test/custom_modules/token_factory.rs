@@ -1,10 +1,16 @@
 use anyhow::Result as AnyResult;
 use cosmwasm_schema::cw_serde;
 use cw_multi_test::{AppResponse, BankSudo, CosmosRouter, SudoMsg};
+use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgSetDenomMetadata;
+use osmosis_std::types::{
+    cosmos::bank::v1beta1::Metadata, osmosis::tokenfactory::v1beta1::MsgChangeAdmin,
+};
 use std::{collections::BTreeMap, vec};
 use thiserror::Error;
 
 use cosmwasm_std::{Addr, Api, BankMsg, BlockInfo, Coin, CosmosMsg, CustomQuery, Storage, Uint128};
+
+use crate::traits::IntoAddr;
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum TokenFactoryError {
@@ -39,33 +45,28 @@ pub struct CTokenFactory {
     pub fee_creation: Option<CTokenFactoryFee>,
     pub token_precisions: BTreeMap<String, u8>,
     pub supplies: BTreeMap<String, Uint128>,
+    pub metadata: BTreeMap<String, Metadata>,
+    pub admin: BTreeMap<String, Addr>,
 }
 
 impl CTokenFactory {
     fn assert_owner(&self, sender: &Addr, denom: &str) -> TokenFactoryResult<()> {
-        let (owner, _) = self.try_parse(denom)?;
+        let owner = self
+            .admin
+            .get(denom)
+            .ok_or(TokenFactoryError::DenomNotExisting {
+                denom: denom.to_string(),
+            })?;
 
-        if sender.to_string() != owner {
-            return Err(TokenFactoryError::InvalidOwner {
-                owner,
+        if owner != sender {
+            Err(TokenFactoryError::InvalidOwner {
+                owner: owner.to_string(),
                 sender: sender.to_string(),
                 denom: denom.to_string(),
-            });
+            })
+        } else {
+            Ok(())
         }
-
-        Ok(())
-    }
-
-    fn try_parse(&self, denom: &str) -> TokenFactoryResult<(String, String)> {
-        let parts: Vec<&str> = denom.split("/").collect();
-
-        if parts.len() != 3 {
-            return Err(TokenFactoryError::InvalidDenom {
-                denom: denom.to_string(),
-            });
-        }
-
-        return Ok((parts[1].to_string(), parts[2].to_string()));
     }
 
     fn build_denom(&self, sender: &Addr, subdenom: &str) -> String {
@@ -137,6 +138,8 @@ impl CTokenFactory {
 
         self.supplies.insert(denom.clone(), Uint128::zero());
 
+        self.admin.insert(denom.clone(), sender.clone());
+
         let response = if let Some(fee_creation) = &self.fee_creation {
             router
                 .execute(
@@ -192,9 +195,46 @@ impl CTokenFactory {
             }),
         )
     }
+
+    pub fn run_set_denom_metadata<ExecC, QueryC: CustomQuery>(
+        &mut self,
+        _api: &dyn Api,
+        _storage: &mut dyn Storage,
+        _router: &dyn CosmosRouter<ExecC = ExecC, QueryC = QueryC>,
+        _block: &BlockInfo,
+        sender: Addr,
+        msg: MsgSetDenomMetadata,
+    ) -> AnyResult<AppResponse> {
+        if let Some(metadata) = msg.metadata {
+            let denom = metadata.base.clone();
+
+            self.assert_owner(&sender, &denom)?;
+
+            self.metadata.insert(denom, metadata);
+        }
+        AnyResult::Ok(AppResponse::default())
+    }
+
+    pub fn run_change_admin<ExecC, QueryC: CustomQuery>(
+        &mut self,
+        api: &dyn Api,
+        _storage: &mut dyn Storage,
+        _router: &dyn CosmosRouter<ExecC = ExecC, QueryC = QueryC>,
+        _block: &BlockInfo,
+        sender: Addr,
+        msg: MsgChangeAdmin,
+    ) -> AnyResult<AppResponse> {
+        self.assert_owner(&sender, &msg.denom)?;
+
+        self.admin.insert(msg.denom, msg.new_admin.into_addr(api)?);
+
+        Ok(AppResponse::default())
+    }
 }
 
 pub struct RunCreateDenomResponse {
     pub response: AppResponse,
     pub denom: String,
 }
+
+// pub struct Metadata {}
