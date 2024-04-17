@@ -41,6 +41,8 @@ enum OsmosisStargateExecuteUrls {
     MsgSetDenomMetadata,
     #[strum(serialize = "/osmosis.tokenfactory.v1beta1.MsgChangeAdmin")]
     MsgChangeAdmin,
+    #[strum(serialize = "/osmosis.concentratedliquidity.v1beta1.MsgCreatePosition")]
+    MsgCreatePosition,
 }
 
 /// returns:
@@ -182,6 +184,7 @@ impl Stargate for OsmosisStargateModule {
                         .run_change_admin(api, storage, router, block, sender, msg)
                 })?
             }
+            OsmosisStargateExecuteUrls::MsgCreatePosition => Ok(AppResponse::default()),
         }
     }
 
