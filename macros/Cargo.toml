@@ -1,6 +1,6 @@
 [package]
 name            = "rhaki-cw-plus-macro"
-version         = "0.1.0"
+version         = "0.2.1"
 edition         = "2021"
 license         = "Apache-2.0"
 authors         = ["Rhaki"]
@@ -10,7 +10,7 @@ repository      = "https://github.com/Rhaki/rhaki-cw-plus"
 [dependencies]
 proc-macro2     = "1"
 quote           = "1"
-syn             = { version = "1", features = ["full", "printing", "extra-traits"] }
+syn             = { version = "2.0.59", features = ["full", "printing", "extra-traits"] }
 
 [lib]
 proc-macro      = true

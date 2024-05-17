@@ -1,6 +1,6 @@
 [package]
 name                = "rhaki-cw-plus"
-version             = "1.0.8"
+version             = "2.0.7"
 edition             = "2021"
 license             = "Apache-2.0"
 authors             = ["Rhaki"]
@@ -14,7 +14,7 @@ deploy              = ["dep:cosmos-grpc-client", "dep:tokio", "dep:async-trait"]
 osmosis             = ["multi-test", "dep:osmosis-std", "dep:prost"]
 
 [dependencies]
-rhaki-cw-plus-macro = { path = "../macros", version = "0.1.0" }
+rhaki-cw-plus-macro = { path = "../macros", version = "0.2.1" }
 cw-storage-plus     = { workspace = true, features = ["macro"] }
 cosmwasm-std        = { workspace = true }
 cosmwasm-schema     = { workspace = true }

@@ -2,7 +2,10 @@ pub use anyhow;
 use cw20::MinterResponse;
 pub use cw_multi_test;
 
-use std::fmt::{self, Debug, Display};
+use std::{
+    fmt::{self, Debug, Display},
+    ops::Sub,
+};
 
 use cosmwasm_std::{
     testing::MockStorage, Addr, Api, Binary, Coin, CustomQuery, Deps, DepsMut, Empty, Env,
@@ -23,6 +26,7 @@ use serde::de::DeserializeOwned;
 
 use crate::{
     asset::{AssetInfoPrecisioned, AssetPrecisioned},
+    math::IntoDecimal,
     traits::{IntoAddr, IntoStdResult, Wrapper},
 };
 
@@ -269,4 +273,23 @@ where
     fn generate_addr(&self, name: &str) -> Addr {
         self.api().addr_make(name)
     }
+}
+
+pub fn assert_with_tollerance<T>(val1: T, val2: T, delta: T)
+where
+    T: PartialEq + PartialOrd + Sub + Display + Clone,
+    <T as std::ops::Sub>::Output: PartialOrd<T> + Display,
+{
+    if val1 > val2 {
+        assert!(val1.clone() - val2.clone() <= delta, "{} - {} <= {}", val1, val2, delta);
+    } else {
+        assert!(val2.clone() - val1.clone() <= delta, "{} - {} <= {}", val2, val1, delta);
+    }
+}
+
+#[test]
+fn test() {
+    let a = "10".into_decimal();
+    let b = "10.1".into_decimal();
+    assert_with_tollerance(a, b, "2".into_decimal());
 }
