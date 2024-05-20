@@ -25,6 +25,7 @@ strum_macros       = { version = "0.26.1"  }
 prost              = { version = "0.12.3"  }
 
 osmosis-std        = { version = "0.22.0"  }
+injective-std      = { version = "1.12.10-testnet"  }
 
 tokio              = { version = "1", features = ["full"] }
 cosmos-grpc-client = "0.3.0"

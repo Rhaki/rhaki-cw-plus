@@ -1,2 +1,5 @@
 #[cfg(feature = "osmosis")]
-pub mod token_factory;
+pub mod osmosis;
+
+#[cfg(feature = "injective")]
+pub mod injective;

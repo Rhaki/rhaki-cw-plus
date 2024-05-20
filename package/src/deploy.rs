@@ -63,7 +63,7 @@ struct ChainInfoNoSeed {
 }
 
 impl ChainInfoNoSeed {
-    pub fn new(
+    pub const fn new(
         chain_name: &str,
         grpc: &str,
         net_type: NetType,
@@ -460,3 +460,16 @@ pub mod functions {
         .await
     }
 }
+
+const DEFAULT_GAS_ADJUSTMENT: Decimal = "1.3".into_decimal();
+
+const DEFAULT_OSMOSIS_TESTNET: ChainInfoNoSeed = ChainInfoNoSeed::new(
+    "osmosis",
+    "https://osmosis-testnet-grpc.polkachu.com:12590",
+    NetType::Testnet,
+    "osmo",
+    118,
+    "0.025",
+    "uosmo",
+    DEFAULT_GAS_ADJUSTMENT,
+);

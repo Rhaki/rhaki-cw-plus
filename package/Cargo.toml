@@ -8,10 +8,11 @@ description         = "Advanced utils for cosmwasm contract"
 repository          = "https://github.com/Rhaki/rhaki-cw-plus"
 
 [features]
-default = []
+default             = []
 multi-test          = ["dep:cw-multi-test", "dep:anyhow", "dep:thiserror", "dep:strum", "dep:strum_macros"]
 deploy              = ["dep:cosmos-grpc-client", "dep:tokio", "dep:async-trait"]
 osmosis             = ["multi-test", "dep:osmosis-std", "dep:prost"]
+injective           = ["multi-test", "dep:injective-std", "dep:prost"]
 
 [dependencies]
 rhaki-cw-plus-macro = { path = "../macros", version = "0.2.1" }
@@ -33,6 +34,7 @@ cw-multi-test       = { optional = true, workspace = true, features = ["cosmwasm
 anyhow              = { optional = true, workspace = true }
 thiserror           = { optional = true, workspace = true } 
 osmosis-std         = { optional = true, workspace = true }
+injective-std       = { optional = true, workspace = true }
 strum               = { optional = true, workspace = true }
 strum_macros        = { optional = true, workspace = true }
 prost               = { optional = true, workspace = true }
