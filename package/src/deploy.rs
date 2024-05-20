@@ -63,7 +63,7 @@ struct ChainInfoNoSeed {
 }
 
 impl ChainInfoNoSeed {
-    pub const fn new(
+    pub fn new(
         chain_name: &str,
         grpc: &str,
         net_type: NetType,
@@ -248,6 +248,32 @@ impl From<(NetType, String)> for ChainInfoNoSeed {
                 330,
                 "0.15".into_decimal(),
                 "uluna",
+                "1.3".into_decimal(),
+            ),
+            "osmosis" => ChainInfoNoSeed::new(
+                value.1.as_str(),
+                match value.0 {
+                    NetType::Mainnet => "https://osmosis-grpc.polkachu.com:12590",
+                    NetType::Testnet => "https://osmosis-testnet-grpc.polkachu.com:12590",
+                },
+                value.0,
+                "osmo",
+                118,
+                "0.025".into_decimal(),
+                "uosmo",
+                "1.3".into_decimal(),
+            ),
+            "injective" => ChainInfoNoSeed::new(
+                value.1.as_str(),
+                match value.0 {
+                    NetType::Mainnet => "",
+                    NetType::Testnet => "https://injective-testnet-grpc.polkachu.com:14390",
+                },
+                value.0,
+                "inj",
+                118,
+                "700000000".into_decimal(),
+                "inj",
                 "1.3".into_decimal(),
             ),
             _ => ChainInfoNoSeed::new(
@@ -461,15 +487,15 @@ pub mod functions {
     }
 }
 
-const DEFAULT_GAS_ADJUSTMENT: Decimal = "1.3".into_decimal();
+// const DEFAULT_GAS_ADJUSTMENT: Decimal = "1.3".into_decimal();
 
-const DEFAULT_OSMOSIS_TESTNET: ChainInfoNoSeed = ChainInfoNoSeed::new(
-    "osmosis",
-    "https://osmosis-testnet-grpc.polkachu.com:12590",
-    NetType::Testnet,
-    "osmo",
-    118,
-    "0.025",
-    "uosmo",
-    DEFAULT_GAS_ADJUSTMENT,
-);
+// const DEFAULT_OSMOSIS_TESTNET: ChainInfoNoSeed = ChainInfoNoSeed::new(
+//     "osmosis",
+//     "https://osmosis-testnet-grpc.polkachu.com:12590",
+//     NetType::Testnet,
+//     "osmo",
+//     118,
+//     "0.025",
+//     "uosmo",
+//     DEFAULT_GAS_ADJUSTMENT,
+// );

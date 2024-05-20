@@ -19,6 +19,15 @@ use cw_multi_test::AppResponse;
 use cw_multi_test::BankSudo;
 use cw_multi_test::SudoMsg;
 
+use injective_std::types::cosmos::bank::v1beta1::Metadata;
+use injective_std::types::injective::tokenfactory::v1beta1::MsgBurn;
+use injective_std::types::injective::tokenfactory::v1beta1::MsgChangeAdmin;
+use injective_std::types::injective::tokenfactory::v1beta1::MsgCreateDenom;
+use injective_std::types::injective::tokenfactory::v1beta1::MsgCreateDenomResponse;
+use injective_std::types::injective::tokenfactory::v1beta1::MsgMint;
+use injective_std::types::injective::tokenfactory::v1beta1::MsgSetDenomMetadata;
+use injective_std::types::injective::tokenfactory::v1beta1::Params;
+use injective_std::types::injective::tokenfactory::v1beta1::QueryParamsResponse;
 use prost::Message;
 use rhaki_cw_plus_macro::{urls, Stargate};
 use std::collections::BTreeMap;
@@ -43,15 +52,15 @@ pub struct TokenFactoryModule {
 
 #[urls]
 pub enum TokenFactoryMsgUrls {
-    #[strum(serialize = "/osmosis.tokenfactory.v1beta1.MsgMint")]
+    #[strum(serialize = "/injective.tokenfactory.v1beta1.MsgMint")]
     MsgMint,
-    #[strum(serialize = "/osmosis.tokenfactory.v1beta1.MsgCreateDenom")]
+    #[strum(serialize = "/injective.tokenfactory.v1beta1.MsgCreateDenom")]
     MsgCreateDenom,
-    #[strum(serialize = "/osmosis.tokenfactory.v1beta1.MsgBurn")]
+    #[strum(serialize = "/injective.tokenfactory.v1beta1.MsgBurn")]
     MsgBurn,
-    #[strum(serialize = "/osmosis.tokenfactory.v1beta1.MsgSetDenomMetadata")]
+    #[strum(serialize = "/injective.tokenfactory.v1beta1.MsgSetDenomMetadata")]
     MsgSetDenomMetadata,
-    #[strum(serialize = "/osmosis.tokenfactory.v1beta1.MsgChangeAdmin")]
+    #[strum(serialize = "/injective.tokenfactory.v1beta1.MsgChangeAdmin")]
     MsgChangeAdmin,
 }
 
@@ -77,13 +86,7 @@ impl StargateApplication for TokenFactoryModule {
                 let msg = MsgMint::decode(data.as_slice())?;
                 let coin = msg.amount.ok_or(anyhow!("amount not found"))?;
 
-                self.run_msg_mint(
-                    router,
-                    sender,
-                    coin.denom,
-                    Uint128::from_str(&coin.amount)?,
-                    msg.mint_to_address,
-                )
+                self.run_msg_mint(router, sender, coin.denom, Uint128::from_str(&coin.amount)?)
             }
             TokenFactoryMsgUrls::MsgCreateDenom => {
                 let msg = MsgCreateDenom::decode(data.as_slice())?;
@@ -93,14 +96,7 @@ impl StargateApplication for TokenFactoryModule {
                 let msg = MsgBurn::decode(data.as_slice())?;
                 let coin = msg.amount.ok_or(anyhow!("amount not found"))?;
 
-                self.run_burn_denom(
-                    api,
-                    router,
-                    sender,
-                    coin.denom,
-                    Uint128::from_str(&coin.amount)?,
-                    msg.burn_from_address,
-                )
+                self.run_burn_denom(router, sender, coin.denom, Uint128::from_str(&coin.amount)?)
             }
             TokenFactoryMsgUrls::MsgSetDenomMetadata => {
                 let msg = MsgSetDenomMetadata::decode(data.as_slice())?;
@@ -136,7 +132,6 @@ impl TokenFactoryModule {
         sender: Addr,
         denom: String,
         amount: Uint128,
-        to: String,
     ) -> AnyResult<AppResponse> {
         self.assert_owner(&sender, &denom)?;
         let mut supply = self
@@ -150,7 +145,7 @@ impl TokenFactoryModule {
         self.supplies.insert(denom.clone(), supply);
 
         router.sudo(SudoMsg::Bank(BankSudo::Mint {
-            to_address: to.to_string(),
+            to_address: sender.to_string(),
             amount: vec![Coin::new(amount.u128(), denom)],
         }))
     }
@@ -200,12 +195,10 @@ impl TokenFactoryModule {
 
     pub fn run_burn_denom(
         &mut self,
-        api: &dyn Api,
         router: &RouterWrapper,
         sender: Addr,
         denom: String,
         amount: Uint128,
-        burn_from_address: String,
     ) -> AnyResult<AppResponse> {
         self.assert_owner(&sender, &denom)?;
         let mut supply = self
@@ -217,10 +210,8 @@ impl TokenFactoryModule {
         supply -= amount;
         self.supplies.insert(denom.clone(), supply);
 
-        let burn_from_address = api.addr_validate(&burn_from_address)?;
-
         router.execute(
-            burn_from_address,
+            sender,
             CosmosMsg::<Empty>::Bank(BankMsg::Burn {
                 amount: vec![Coin::new(amount.u128(), denom)],
             }),
@@ -266,9 +257,8 @@ impl TokenFactoryModule {
                 denom_creation_fee: self
                     .fee_creation
                     .clone()
-                    .map(|val| osmosis_std::cosmwasm_to_proto_coins(val.fee))
+                    .map(|val| injective_std::shim::cosmwasm_to_proto_coins(val.fee))
                     .unwrap_or_default(),
-                denom_creation_gas_consume: 200_000,
             }),
         }
         .into_binary()?)
@@ -302,7 +292,7 @@ mod test {
     use crate::multi_test::multi_stargate_module::{multi_stargate_app, ModuleDb};
     use cosmwasm_std::Coin;
     use cw_multi_test::Executor;
-    use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgCreateDenom;
+    use injective_std::types::injective::tokenfactory::v1beta1::MsgCreateDenom;
 
     use super::{TokenFactoryFee, TokenFactoryModule};
 
@@ -323,6 +313,8 @@ mod test {
         let sender = app.generate_addr("sender");
 
         let msg = MsgCreateDenom {
+            name: "test".to_string(),
+            symbol: "TST".to_string(),
             sender: sender.to_string(),
             subdenom: "test".to_string(),
         };

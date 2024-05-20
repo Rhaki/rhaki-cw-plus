@@ -22,11 +22,8 @@ use cw_multi_test::{
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 
-// use anyhow::Result as AnyResult;
-
 use crate::{
     asset::{AssetInfoPrecisioned, AssetPrecisioned},
-    math::IntoDecimal,
     traits::{IntoAddr, IntoStdResult, Wrapper},
 };
 
@@ -281,14 +278,27 @@ where
     <T as std::ops::Sub>::Output: PartialOrd<T> + Display,
 {
     if val1 > val2 {
-        assert!(val1.clone() - val2.clone() <= delta, "{} - {} <= {}", val1, val2, delta);
+        assert!(
+            val1.clone() - val2.clone() <= delta,
+            "{} - {} <= {}",
+            val1,
+            val2,
+            delta
+        );
     } else {
-        assert!(val2.clone() - val1.clone() <= delta, "{} - {} <= {}", val2, val1, delta);
+        assert!(
+            val2.clone() - val1.clone() <= delta,
+            "{} - {} <= {}",
+            val2,
+            val1,
+            delta
+        );
     }
 }
 
 #[test]
 fn test() {
+    use crate::math::IntoDecimal;
     let a = "10".into_decimal();
     let b = "10.1".into_decimal();
     assert_with_tollerance(a, b, "2".into_decimal());

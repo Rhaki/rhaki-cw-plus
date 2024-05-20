@@ -211,7 +211,7 @@ pub mod multi_index {
 }
 
 pub mod interfaces {
-    use std::fmt::{Debug, Display};
+    use std::fmt::Debug;
 
     use cosmwasm_std::{StdError, StdResult, Storage};
     use cw_storage_plus::{Item, Map, PrimaryKey};
