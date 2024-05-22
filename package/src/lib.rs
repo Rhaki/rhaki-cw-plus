@@ -9,7 +9,7 @@ pub mod utils;
 pub mod wasm;
 
 pub use cw_asset;
-pub use rhaki_cw_plus_macro::cw_serde_value;
+pub use rhaki_cw_plus_macro::*;
 
 pub use serde as _serde;
 
