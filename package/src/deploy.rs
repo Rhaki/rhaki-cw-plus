@@ -148,8 +148,13 @@ pub trait Deploier: Serialize + DeserializeOwned {
     const PATH_ARTIFACTS: &'static str;
     const PATH_CONFIG: &'static str;
 
-    fn read_data() -> StdResult<DataContainer<Self>> {
+    fn read_data_from_input() -> StdResult<DataContainer<Self>> {
         let net = get_net_by_args();
+        Self::read_data_from_args(net.0, &net.1)
+    }
+
+    fn read_data_from_args(net_type: NetType, chain_name: &str) -> StdResult<DataContainer<Self>> {
+        let net = (net_type, chain_name.to_string());
         let prefix = format!("{}-{}", Into::<&str>::into(net.0), net.1);
 
         let path = PathBuf::from(std::env::current_dir().into_std_result()?);
@@ -364,7 +369,7 @@ pub mod functions {
             .await
             .into_std_result()?;
 
-        let response = search_tx(client, res.tx_response.unwrap().txhash, None)
+        let response = search_tx(client, res.tx_response.unwrap().txhash, Some(10))
             .await
             .into_std_result()?;
 
@@ -426,8 +431,14 @@ pub mod functions {
     pub async fn search_tx(
         client: &mut GrpcClient,
         hash: String,
-        _max_timeout: Option<u64>,
+        max_timeout: Option<u64>,
     ) -> StdResult<GetTxResponse> {
+        let timeout = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+            + max_timeout.unwrap_or(30);
+
         loop {
             let res = client
                 .clients
@@ -437,6 +448,15 @@ pub mod functions {
 
             if let Ok(response) = res {
                 return Ok(response.into_inner());
+            }
+
+            if std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+                > timeout
+            {
+                return Err(StdError::generic_err("timeout"));
             }
         }
     }
@@ -486,16 +506,3 @@ pub mod functions {
         .await
     }
 }
-
-// const DEFAULT_GAS_ADJUSTMENT: Decimal = "1.3".into_decimal();
-
-// const DEFAULT_OSMOSIS_TESTNET: ChainInfoNoSeed = ChainInfoNoSeed::new(
-//     "osmosis",
-//     "https://osmosis-testnet-grpc.polkachu.com:12590",
-//     NetType::Testnet,
-//     "osmo",
-//     118,
-//     "0.025",
-//     "uosmo",
-//     DEFAULT_GAS_ADJUSTMENT,
-// );
