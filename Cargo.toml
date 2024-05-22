@@ -28,5 +28,5 @@ osmosis-std        = { version = "0.22.0"  }
 injective-std      = { version = "1.12.10-testnet"  }
 
 tokio              = { version = "1", features = ["full"] }
-cosmos-grpc-client = "0.3.0"
+cosmos-grpc-client = "2.0.1"
 async-trait        = "0.1.77"
