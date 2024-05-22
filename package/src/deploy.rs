@@ -1,14 +1,17 @@
+use anyhow::anyhow;
 use std::path::PathBuf;
 
 use async_trait::async_trait;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Decimal, StdError, StdResult};
+use cosmwasm_std::Decimal;
 use serde::{de::DeserializeOwned, Serialize};
 
-use crate::{math::IntoDecimal, traits::IntoStdResult};
+use crate::math::IntoDecimal;
 
 pub use cosmos_grpc_client;
 pub use tokio;
+
+pub type AnyResult<T> = anyhow::Result<T>;
 
 use self::functions::get_net_by_args;
 
@@ -124,7 +127,7 @@ impl<T> DataContainer<T>
 where
     T: Deploier,
 {
-    pub fn save_data(&self) -> StdResult<()> {
+    pub fn save_data(&self) -> AnyResult<()> {
         let chain_info_no_seed: ChainInfoNoSeed = self.chain_info.clone().into();
         let prefix = chain_info_no_seed.to_prefix();
 
@@ -133,13 +136,12 @@ where
             data: &self.data,
         };
 
-        let mut path = PathBuf::from(std::env::current_dir().into_std_result()?);
+        let mut path = PathBuf::from(std::env::current_dir()?);
         path.push(format!("{}/config/{}.json", T::PATH_CONFIG, prefix));
-        std::fs::write(
+        Ok(std::fs::write(
             path,
-            serde_json::to_string(&data_container_no_seed).into_std_result()?,
-        )
-        .into_std_result()
+            serde_json::to_string(&data_container_no_seed)?,
+        )?)
     }
 }
 
@@ -148,27 +150,27 @@ pub trait Deploier: Serialize + DeserializeOwned {
     const PATH_ARTIFACTS: &'static str;
     const PATH_CONFIG: &'static str;
 
-    fn read_data_from_input() -> StdResult<DataContainer<Self>> {
+    fn read_data_from_input() -> AnyResult<DataContainer<Self>> {
         let net = get_net_by_args();
         Self::read_data_from_args(net.0, &net.1)
     }
 
-    fn read_data_from_args(net_type: NetType, chain_name: &str) -> StdResult<DataContainer<Self>> {
+    fn read_data_from_args(net_type: NetType, chain_name: &str) -> AnyResult<DataContainer<Self>> {
         let net = (net_type, chain_name.to_string());
         let prefix = format!("{}-{}", Into::<&str>::into(net.0), net.1);
 
-        let path = PathBuf::from(std::env::current_dir().into_std_result()?);
+        let path = PathBuf::from(std::env::current_dir()?);
 
         let mut path_data = path.clone();
         let mut path_seed_phrase = path;
 
         path_data.push(format!("{}/config/{}.json", Self::PATH_CONFIG, prefix));
-        let data = std::fs::read_to_string(path_data).into_std_result()?;
-        let data = serde_json::from_str::<DataContainerNoSeed<Self>>(&data).into_std_result()?;
+        let data = std::fs::read_to_string(path_data)?;
+        let data = serde_json::from_str::<DataContainerNoSeed<Self>>(&data)?;
 
         path_seed_phrase.push(format!("{}/config/seed-{}.json", Self::PATH_CONFIG, prefix));
-        let seed = std::fs::read_to_string(path_seed_phrase).into_std_result()?;
-        let seed = serde_json::from_str::<SeedPhrase>(&seed).into_std_result()?;
+        let seed = std::fs::read_to_string(path_seed_phrase)?;
+        let seed = serde_json::from_str::<SeedPhrase>(&seed)?;
 
         Ok(DataContainer {
             chain_info: data.chain_info.into_chain_info(seed.seed_phrase),
@@ -176,7 +178,7 @@ pub trait Deploier: Serialize + DeserializeOwned {
         })
     }
 
-    fn generate(&self) -> StdResult<()> {
+    fn generate(&self) -> AnyResult<()> {
         let net = get_net_by_args();
 
         let chain_info: ChainInfoNoSeed = net.into();
@@ -191,11 +193,11 @@ pub trait Deploier: Serialize + DeserializeOwned {
         };
 
         // Check if folder config exists
-        let mut path = PathBuf::from(std::env::current_dir().into_std_result()?);
+        let mut path = PathBuf::from(std::env::current_dir()?);
         path.push(format!("{}/config", Self::PATH_CONFIG));
 
         if !path.exists() {
-            std::fs::create_dir_all(path.clone()).into_std_result()?;
+            std::fs::create_dir_all(path.clone())?;
         }
 
         let mut path_data = path.clone();
@@ -203,38 +205,30 @@ pub trait Deploier: Serialize + DeserializeOwned {
 
         path_data.push(format!("./{}.json", prefix));
 
-        let data = serde_json::to_string(&container).into_std_result()?;
+        let data = serde_json::to_string(&container)?;
         std::fs::write(path_data.clone(), data)
-            .into_std_result()
-            .map_err(|_| {
-                StdError::generic_err(format!(
-                    "invalid path on generate: {}",
-                    path_data.to_str().unwrap()
-                ))
-            })?;
+            .map_err(|_| anyhow!("invalid path on generate: {}", path_data.to_str().unwrap()))?;
 
         path_seed_phrase.push(format!("./seed-{}.json", prefix));
-        let data = serde_json::to_string(&seed_phrase).into_std_result()?;
-        std::fs::write(path_seed_phrase.clone(), data)
-            .into_std_result()
-            .map_err(|_| {
-                StdError::generic_err(format!(
-                    "invalid path on generate: {}",
-                    path_seed_phrase.to_str().unwrap()
-                ))
-            })?;
+        let data = serde_json::to_string(&seed_phrase)?;
+        std::fs::write(path_seed_phrase.clone(), data).map_err(|_| {
+            anyhow!(
+                "invalid path on generate: {}",
+                path_seed_phrase.to_str().unwrap()
+            )
+        })?;
 
         Ok(())
     }
 
-    fn read_wasm_bytecode(&self, file_name: &str) -> StdResult<Vec<u8>> {
+    fn read_wasm_bytecode(&self, file_name: &str) -> AnyResult<Vec<u8>> {
         std::fs::read(format!("{}/{file_name}.wasm", Self::PATH_ARTIFACTS)).map_err(|_| {
-            StdError::generic_err(format!(
+            anyhow!(
                 " {} not found in {}{}",
                 file_name,
                 std::env::current_dir().unwrap().to_str().unwrap(),
                 Self::PATH_ARTIFACTS
-            ))
+            )
         })
     }
 }
@@ -311,6 +305,9 @@ impl Into<&str> for NetType {
 }
 
 pub mod functions {
+    use std::str::from_utf8;
+
+    use anyhow::{anyhow, bail};
     use cosmos_grpc_client::{
         cosmos_sdk_proto::{
             cosmos::{
@@ -318,16 +315,16 @@ pub mod functions {
                 tx::v1beta1::{GetTxRequest, GetTxResponse},
             },
             cosmwasm::wasm::v1::{AccessConfig, MsgInstantiateContract, MsgStoreCode},
+            prost::Name,
         },
-        cosmrs::tx::MessageExt,
-        BroadcastMode, GrpcClient, Wallet,
+        AnyBuilder, BroadcastMode, GrpcClient, Wallet,
     };
     use cosmwasm_std::{to_json_binary, Coin as StdCoin, StdError, StdResult};
     use serde::Serialize;
 
     use crate::traits::IntoStdResult;
 
-    use super::{ChainInfo, Deploier, NetType};
+    use super::{AnyResult, ChainInfo, Deploier, NetType};
 
     pub fn get_net_by_args() -> (NetType, String) {
         let args = std::env::args().collect::<Vec<String>>();
@@ -352,22 +349,20 @@ pub mod functions {
         data: &impl Deploier,
         file_name: &str,
         instantiate_permission: Option<AccessConfig>,
-    ) -> StdResult<u64> {
+    ) -> AnyResult<u64> {
         print!("Storing {file_name}...");
         let bytes = data.read_wasm_bytecode(file_name)?;
 
         let msg = MsgStoreCode {
-            sender: wallet.account_address(),
+            sender: wallet.account_address()?,
             wasm_byte_code: bytes,
             instantiate_permission,
         }
-        .to_any()
-        .into_std_result()?;
+        .build_any(MsgStoreCode::type_url());
 
         let res = wallet
-            .broadcast_tx(client, vec![msg], None, None, BroadcastMode::Sync)
-            .await
-            .into_std_result()?;
+            .broadcast_tx(vec![msg], None, None, BroadcastMode::Sync)
+            .await?;
 
         let response = search_tx(client, res.tx_response.unwrap().txhash, Some(10))
             .await
@@ -389,14 +384,14 @@ pub mod functions {
         msg: T,
         funds: Vec<StdCoin>,
         contract_name: Option<&str>,
-    ) -> StdResult<String> {
+    ) -> AnyResult<String> {
         print!(
             "Instaniate {}...",
             contract_name.unwrap_or(code_id.to_string().as_str())
         );
 
         let msg = MsgInstantiateContract {
-            sender: wallet.account_address(),
+            sender: wallet.account_address()?,
             admin: admin.unwrap_or_default(),
             code_id,
             label: label.into(),
@@ -409,11 +404,10 @@ pub mod functions {
                 })
                 .collect(),
         }
-        .to_any()
-        .unwrap();
+        .build_any(MsgInstantiateContract::type_url());
 
         let res = wallet
-            .broadcast_tx(client, vec![msg], None, None, BroadcastMode::Sync)
+            .broadcast_tx(vec![msg], None, None, BroadcastMode::Sync)
             .await
             .unwrap();
 
@@ -461,19 +455,22 @@ pub mod functions {
         }
     }
 
-    pub fn get_code_id_from_init_response(response: GetTxResponse) -> StdResult<u64> {
-        for event in response.tx_response.unwrap().events {
+    pub fn get_code_id_from_init_response(response: GetTxResponse) -> AnyResult<u64> {
+        for event in response
+            .tx_response
+            .ok_or(anyhow!("Empty tx_response"))?
+            .events
+        {
             // if event.r#type == "store_code".to_string() {
             for attribute in event.attributes {
                 if attribute.key == "code_id".to_string() {
-                    // clear code id
-                    // let a  = attribute.key.replace('"', "");
-                    return Ok(attribute.value.replace('"', "").parse().unwrap());
+                    let val = from_utf8(&attribute.value)?;
+                    return Ok(val.replace('"', "").parse().unwrap());
                 }
             }
             // }
         }
-        Err(StdError::generic_err("not found"))
+        bail!("not found")
     }
 
     pub fn get_address_from_init_response(response: GetTxResponse) -> StdResult<String> {
@@ -481,7 +478,7 @@ pub mod functions {
             // if event.r#type == "instantiate".to_string() {
             for attribute in event.attributes {
                 if attribute.key == "_contract_address".to_string() {
-                    return Ok(attribute.value);
+                    return Ok(from_utf8(&attribute.value)?.to_string());
                 }
             }
             // }
@@ -490,9 +487,9 @@ pub mod functions {
     }
 
     pub async fn deploy_create_wallet(
-        client: &mut GrpcClient,
+        client: GrpcClient,
         chain_info: &ChainInfo,
-    ) -> StdResult<Wallet> {
+    ) -> AnyResult<Wallet> {
         Wallet::from_seed_phrase(
             client,
             chain_info.seed_phrase.clone(),
