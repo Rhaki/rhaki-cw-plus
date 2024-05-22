@@ -344,7 +344,6 @@ pub mod functions {
     }
 
     pub async fn store_code(
-        client: &mut GrpcClient,
         wallet: &mut Wallet,
         data: &impl Deploier,
         file_name: &str,
@@ -364,7 +363,7 @@ pub mod functions {
             .broadcast_tx(vec![msg], None, None, BroadcastMode::Sync)
             .await?;
 
-        let response = search_tx(client, res.tx_response.unwrap().txhash, Some(10))
+        let response = search_tx(&wallet.client, res.tx_response.unwrap().txhash, Some(10))
             .await
             .into_std_result()?;
 
@@ -376,7 +375,6 @@ pub mod functions {
     }
 
     pub async fn instantiate_contract<T: Serialize>(
-        client: &mut GrpcClient,
         wallet: &mut Wallet,
         admin: Option<String>,
         code_id: u64,
@@ -411,7 +409,7 @@ pub mod functions {
             .await
             .unwrap();
 
-        let response = search_tx(client, res.tx_response.unwrap().txhash, None)
+        let response = search_tx(&wallet.client, res.tx_response.unwrap().txhash, None)
             .await
             .unwrap();
 
@@ -423,7 +421,7 @@ pub mod functions {
     }
 
     pub async fn search_tx(
-        client: &mut GrpcClient,
+        client: &GrpcClient,
         hash: String,
         max_timeout: Option<u64>,
     ) -> StdResult<GetTxResponse> {
@@ -435,6 +433,7 @@ pub mod functions {
 
         loop {
             let res = client
+                .clone()
                 .clients
                 .tx
                 .get_tx(GetTxRequest { hash: hash.clone() })
@@ -487,11 +486,11 @@ pub mod functions {
     }
 
     pub async fn deploy_create_wallet(
-        client: GrpcClient,
+        client: &GrpcClient,
         chain_info: &ChainInfo,
     ) -> AnyResult<Wallet> {
         Wallet::from_seed_phrase(
-            client,
+            client.clone(),
             chain_info.seed_phrase.clone(),
             chain_info.chain_prefix.clone(),
             chain_info.coin_type,
