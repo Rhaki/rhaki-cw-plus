@@ -135,7 +135,7 @@ pub trait UnwrapError {
     fn unwrap_err_contains(self, text: impl Into<String>) -> Self::Error;
 }
 
-impl<T: Debug, E: Display> UnwrapError for Result<T, E> {
+impl<T, E: Display> UnwrapError for Result<T, E> {
     type Error = E;
 
     fn unwrap_err_contains(self, text: impl Into<String>) -> Self::Error {
