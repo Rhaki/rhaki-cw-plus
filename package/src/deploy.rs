@@ -205,18 +205,24 @@ pub trait Deploier: Serialize + DeserializeOwned {
 
         path_data.push(format!("./{}.json", prefix));
 
-        let data = serde_json::to_string(&container)?;
-        std::fs::write(path_data.clone(), data)
-            .map_err(|_| anyhow!("invalid path on generate: {}", path_data.to_str().unwrap()))?;
-
+        if !path_data.exists() {
+            let data = serde_json::to_string(&container)?;
+            std::fs::write(path_data.clone(), data).map_err(|_| {
+                anyhow!("invalid path on generate: {}", path_data.to_str().unwrap())
+            })?;
+        }
         path_seed_phrase.push(format!("./seed-{}.json", prefix));
-        let data = serde_json::to_string(&seed_phrase)?;
-        std::fs::write(path_seed_phrase.clone(), data).map_err(|_| {
-            anyhow!(
-                "invalid path on generate: {}",
-                path_seed_phrase.to_str().unwrap()
-            )
-        })?;
+
+        if !path_seed_phrase.exists() {
+            let data = serde_json::to_string(&seed_phrase)?;
+
+            std::fs::write(path_seed_phrase.clone(), data).map_err(|_| {
+                anyhow!(
+                    "invalid path on generate: {}",
+                    path_seed_phrase.to_str().unwrap()
+                )
+            })?;
+        }
 
         Ok(())
     }
