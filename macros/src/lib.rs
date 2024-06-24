@@ -174,13 +174,21 @@ fn get_attr<'a>(attr_ident: &str, attrs: &'a [syn::Attribute]) -> Option<&'a syn
 // --- Optionalbale ---
 
 /// Create a struct with all fields as Option<T> where T is the original field type.
+///
 /// Fields can be avoided by adding `#[optionable(avoid)]` attribute to the field.
+///
+/// `optionable` attribute has to be provided before the struct definition, with the following attributes:
+/// - *(required)*`name`: the name of the struct to be created
+/// - *(optional)*`derive`: the derives to be added to the struct: ex: `derive(Clone, Debug)`
+/// - *(optional)*`attributes`: the attributes to be added to the struct: ex: `attribute(cw_serde)`
 ///
 /// **Example**:
 /// ```
 /// use crate::Optionable;
+/// use cosmwasm_schema::cw_serde;
+///
 /// #[derive(Optionable)]
-/// #[optionable(name = OptFoo)]
+/// #[optionable(name = OptFoo, attributes(cw_serde))]
 /// pub struct Foo {
 ///     pub foo: String,
 ///     #[optionable(avoid)]
@@ -197,13 +205,40 @@ pub fn derive_option(input: TokenStream) -> TokenStream {
 
     let attribute = get_attr("optionable", &input.attrs).expect("optionable attribute not found");
 
-    let name_ident = get_attr_ident(&attribute, "name").expect("name attribute not found");
+    let name_ident = get_attr_by_ident(&attribute, "name", 2).expect("name attribute not found");
 
     let name = if let TokenTree::Ident(name_ident) = name_ident {
         name_ident
     } else {
         panic!("name attribute is not ident: {name_ident:#?}")
     };
+
+    let mut derives = vec![];
+
+    if let Some(derive_ident) = get_attr_by_ident(&attribute, "derive", 1) {
+        if let TokenTree::Group(group) = derive_ident {
+            for dev in group.stream().into_iter() {
+                if let TokenTree::Ident(ident) = dev {
+                    derives.push(ident);
+                }
+            }
+        }
+    }
+
+    let mut attributes = vec![];
+
+    if let Some(attrs) = get_attr_by_ident(&attribute, "attributes", 1) {
+        // panic!("{:#?}", attrs);
+        if let TokenTree::Group(group) = attrs {
+            for dev in group.stream().into_iter() {
+                if let TokenTree::Ident(ident) = dev {
+                    attributes.push(ident);
+                }
+            }
+        }
+    }
+
+    // let derive_ident = get_attr_ident(&attribute, "derive").expect("name attribute not found");
 
     let fields = if let syn::Data::Struct(data) = input.data.clone() {
         data.fields
@@ -239,37 +274,37 @@ pub fn derive_option(input: TokenStream) -> TokenStream {
     }
 
     let expanded = quote! {
-        #[derive(Debug, Default)]
+        #[derive(#(#derives),*)]
+        #(#[#attributes]),*
         pub struct #name {
             #(#opt_fields),*
         }
-
-        // #input
     };
 
     TokenStream::from(expanded)
 }
 
-fn get_attr_ident(attr: &Attribute, ident_name: &str) -> Option<TokenTree> {
+fn get_attr_by_ident(attr: &Attribute, ident_name: &str, after: usize) -> Option<TokenTree> {
     if let Meta::List(list) = &attr.meta {
         let list_tokens = list.tokens.clone().into_iter().collect::<Vec<TokenTree>>();
 
-        let idx = list_tokens
-            .iter()
-            .position(|t| {
-                if let TokenTree::Ident(ident) = t {
-                    if ident == ident_name {
-                        true
-                    } else {
-                        false
-                    }
+        let idx = list_tokens.iter().position(|t| {
+            if let TokenTree::Ident(ident) = t {
+                if ident == ident_name {
+                    true
                 } else {
                     false
                 }
-            })
-            .unwrap();
+            } else {
+                false
+            }
+        });
 
-        Some(list_tokens[idx + 2].clone())
+        if let Some(idx) = idx {
+            Some(list_tokens[idx + after].clone())
+        } else {
+            None
+        }
     } else {
         None
     }
