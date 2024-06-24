@@ -1,7 +1,9 @@
+use core::panic;
+
 use proc_macro::TokenStream;
 use proc_macro2::TokenTree;
 use quote::{quote, ToTokens};
-use syn::{parse_macro_input, parse_quote, DeriveInput, Meta};
+use syn::{parse_macro_input, parse_quote, Attribute, DeriveInput, Meta};
 
 /// Similar to `cosmwasm_schema::cw_serde` but without the `schemars::JsonSchema` implementation.
 ///
@@ -167,4 +169,108 @@ fn get_attr<'a>(attr_ident: &str, attrs: &'a [syn::Attribute]) -> Option<&'a syn
     attrs.iter().find(|&attr| {
         attr.path().segments.len() == 1 && attr.path().segments[0].ident == attr_ident
     })
+}
+
+// --- Optionalbale ---
+
+/// Create a struct with all fields as Option<T> where T is the original field type.
+/// Fields can be avoided by adding `#[optionable(avoid)]` attribute to the field.
+///
+/// **Example**:
+/// ```
+/// use crate::Optionable;
+/// #[derive(Optionable)]
+/// #[optionable(name = OptFoo)]
+/// pub struct Foo {
+///     pub foo: String,
+///     #[optionable(avoid)]
+///     pub bar: u64,
+/// }
+///
+/// let opt_foo = OptFoo {
+///    foo: Some("foo".to_string())
+/// }
+/// ```
+#[proc_macro_derive(Optionable, attributes(optionable))]
+pub fn derive_option(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+
+    let attribute = get_attr("optionable", &input.attrs).expect("optionable attribute not found");
+
+    let name_ident = get_attr_ident(&attribute, "name").expect("name attribute not found");
+
+    let name = if let TokenTree::Ident(name_ident) = name_ident {
+        name_ident
+    } else {
+        panic!("name attribute is not ident: {name_ident:#?}")
+    };
+
+    let fields = if let syn::Data::Struct(data) = input.data.clone() {
+        data.fields
+    } else {
+        panic!("not a struct");
+    };
+
+    let mut opt_fields = vec![];
+
+    for field in &fields {
+        let mut found = true;
+        for attr in &field.attrs {
+            if attr.path().is_ident("optionable") {
+                if let Meta::List(meta_list) = &attr.meta {
+                    for nested_meta in meta_list.tokens.clone().into_token_stream() {
+                        if let TokenTree::Ident(ident) = nested_meta {
+                            if ident == "avoid" {
+                                found = false
+                            };
+                        }
+                    }
+                }
+            }
+        }
+
+        if found {
+            let ident = &field.ident;
+            let ty = &field.ty;
+            opt_fields.push(quote! {
+                pub #ident: Option<#ty>
+            });
+        }
+    }
+
+    let expanded = quote! {
+        #[derive(Debug, Default)]
+        pub struct #name {
+            #(#opt_fields),*
+        }
+
+        // #input
+    };
+
+    TokenStream::from(expanded)
+}
+
+fn get_attr_ident(attr: &Attribute, ident_name: &str) -> Option<TokenTree> {
+    if let Meta::List(list) = &attr.meta {
+        let list_tokens = list.tokens.clone().into_iter().collect::<Vec<TokenTree>>();
+
+        let idx = list_tokens
+            .iter()
+            .position(|t| {
+                if let TokenTree::Ident(ident) = t {
+                    if ident == ident_name {
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            })
+            .unwrap();
+
+        Some(list_tokens[idx + 2].clone())
+    } else {
+        None
+    }
 }

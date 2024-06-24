@@ -664,7 +664,17 @@ fn t_1() {
     assert!(greater > smaller);
     assert!(greater == greater.clone());
 
+    let inj: AssetInfoPrecisioned = AssetInfoPrecisioned::native("inj", 18);
 
+    // If to_asset arg type is Uint, it will be converted to AssetAmount::Precisionless
+    let amount_on_wallet_from_precisionless = inj.to_asset(Uint128::new(1_000_000_000_000_000_000));
+    // If to_asset arg type is Decimal, it will be converted to AssetAmount::Precisioned
+    let amount_on_wallet_from_precisioned = inj.to_asset("1".into_decimal());
+
+    assert_eq!(
+        amount_on_wallet_from_precisionless,
+        amount_on_wallet_from_precisioned
+    );
 }
 
 #[test]
