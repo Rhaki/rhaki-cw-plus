@@ -175,7 +175,7 @@ fn get_attr<'a>(attr_ident: &str, attrs: &'a [syn::Attribute]) -> Option<&'a syn
     })
 }
 
-// --- Optionalbale ---
+// --- Optionable ---
 
 /// Create another `Struct` with all fields as `Option<T>` where `T` is the original field type.
 ///
