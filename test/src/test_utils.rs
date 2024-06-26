@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use cosmwasm_schema::cw_serde;
 use rhaki_cw_plus::serde_value::Value;
 use rhaki_cw_plus::utils::{vec_to_i_hashmap, vec_tuple_to_hashmap};
-use rhaki_cw_plus::{cw_serde_value, Optionable};
+use rhaki_cw_plus::{cw_serde_value, Optionable, SmallerTwin};
 
 #[cw_serde_value]
 pub struct WithCwSerdeStruct {
@@ -14,11 +14,16 @@ pub struct WithCwSerdeStruct {
 pub struct WithoutSerdeStruct {}
 
 #[cw_serde]
-#[derive(Optionable)]
+#[derive(Optionable, SmallerTwin)]
 #[optionable(name = MsgOwnable, attributes(cw_serde))]
+#[smaller_twin(name = ConfigInit, attributes(cw_serde))]
 pub struct Config {
     pub foo: String,
     pub bar: u64,
+    #[optionable(skip)]
+    pub skip_field: String,
+    #[smaller_twin(skip)]
+    pub option_field: Option<String>,
 }
 
 #[test]

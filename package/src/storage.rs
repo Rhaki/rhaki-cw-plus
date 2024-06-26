@@ -211,7 +211,7 @@ pub mod multi_index {
 }
 
 pub mod interfaces {
-    use std::fmt::Debug;
+    use std::fmt::Display;
 
     use cosmwasm_std::{StdError, StdResult, Storage};
     use cw_storage_plus::{Item, Map, PrimaryKey};
@@ -249,7 +249,7 @@ pub mod interfaces {
     impl<'a, K, V> MapExt for Map<'a, K, V>
     where
         V: Serialize + DeserializeOwned + Clone,
-        K: PrimaryKey<'a> + Debug + Clone,
+        K: PrimaryKey<'a> + Display + Clone,
     {
         type K = K;
         type V = V;
@@ -257,7 +257,7 @@ pub mod interfaces {
         fn better_load(&self, storage: &dyn Storage, key: Self::K) -> StdResult<Self::V> {
             self.load(storage, key.clone()).map_err(|_| {
                 StdError::generic_err(format!(
-                    "Unable to load key {:#?} on Map with namespace {}",
+                    "Unable to load key {} on Map with namespace {}",
                     key,
                     String::from_utf8_lossy(self.namespace())
                 ))

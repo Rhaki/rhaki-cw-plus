@@ -1,9 +1,13 @@
-use core::panic;
-
-use proc_macro::TokenStream;
-use proc_macro2::TokenTree;
-use quote::{quote, ToTokens};
-use syn::{parse_macro_input, parse_quote, Attribute, DeriveInput, Meta};
+use {
+    core::panic,
+    proc_macro::TokenStream,
+    proc_macro2::{Ident, TokenTree},
+    quote::{quote, ToTokens},
+    syn::{
+        parse_macro_input, parse_quote, Attribute, DeriveInput, GenericArgument, Meta,
+        PathArguments, Type, TypePath,
+    },
+};
 
 /// Similar to `cosmwasm_schema::cw_serde` but without the `schemars::JsonSchema` implementation.
 ///
@@ -173,38 +177,41 @@ fn get_attr<'a>(attr_ident: &str, attrs: &'a [syn::Attribute]) -> Option<&'a syn
 
 // --- Optionalbale ---
 
-/// Create a struct with all fields as Option<T> where T is the original field type.
+/// Create another `Struct` with all fields as `Option<T>` where `T` is the original field type.
 ///
-/// Fields can be avoided by adding `#[optionable(avoid)]` attribute to the field.
+/// `optionable` attribute has to be provided before the `Struct` definition, with the following attributes:
+/// - *(required)*`name`: the name of the `Struct` to be created;
+/// - *(optional)*`derive`: the derives to be added to the `Struct`: ex: `derive(Clone, Debug)`;
+/// - *(optional)*`attributes`: the attributes to be added to the `Struct`: ex: `attribute(cw_serde)`.
 ///
-/// `optionable` attribute has to be provided before the struct definition, with the following attributes:
-/// - *(required)*`name`: the name of the struct to be created
-/// - *(optional)*`derive`: the derives to be added to the struct: ex: `derive(Clone, Debug)`
-/// - *(optional)*`attributes`: the attributes to be added to the struct: ex: `attribute(cw_serde)`
+/// On each fiels of the `Struct`, is possible to use the `optionable` attribute as:
+/// - `#[optionable(skip)]`: skip the field from the `Struct`.
 ///
-/// **Example**:
+/// If a field is alredy an `Option<T>`, the field will be transformed to `rhaki_cw_plus::utils::UpdateOption<T>`.
+///
+/// ## **Example**:
+///
 /// ```
 /// use crate::Optionable;
 /// use cosmwasm_schema::cw_serde;
 ///
 /// #[derive(Optionable)]
-/// #[optionable(name = OptFoo, attributes(cw_serde))]
-/// pub struct Foo {
+/// #[optionable(name = UpdateConfig, attributes(cw_serde))]
+/// pub struct Config {
 ///     pub foo: String,
-///     #[optionable(avoid)]
+///     #[optionable(skip)]
 ///     pub bar: u64,
 /// }
 ///
-/// let opt_foo = OptFoo {
+/// let update_config = UpdateConfig {
 ///    foo: Some("foo".to_string())
-/// }
+/// };
 /// ```
 #[proc_macro_derive(Optionable, attributes(optionable))]
 pub fn derive_option(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
     let attribute = get_attr("optionable", &input.attrs).expect("optionable attribute not found");
-
     let name_ident = get_attr_by_ident(&attribute, "name", 2).expect("name attribute not found");
 
     let name = if let TokenTree::Ident(name_ident) = name_ident {
@@ -213,32 +220,7 @@ pub fn derive_option(input: TokenStream) -> TokenStream {
         panic!("name attribute is not ident: {name_ident:#?}")
     };
 
-    let mut derives = vec![];
-
-    if let Some(derive_ident) = get_attr_by_ident(&attribute, "derive", 1) {
-        if let TokenTree::Group(group) = derive_ident {
-            for dev in group.stream().into_iter() {
-                if let TokenTree::Ident(ident) = dev {
-                    derives.push(ident);
-                }
-            }
-        }
-    }
-
-    let mut attributes = vec![];
-
-    if let Some(attrs) = get_attr_by_ident(&attribute, "attributes", 1) {
-        // panic!("{:#?}", attrs);
-        if let TokenTree::Group(group) = attrs {
-            for dev in group.stream().into_iter() {
-                if let TokenTree::Ident(ident) = dev {
-                    attributes.push(ident);
-                }
-            }
-        }
-    }
-
-    // let derive_ident = get_attr_ident(&attribute, "derive").expect("name attribute not found");
+    let (derives, attributes) = get_derives_and_attributes(&attribute);
 
     let fields = if let syn::Data::Struct(data) = input.data.clone() {
         data.fields
@@ -250,15 +232,33 @@ pub fn derive_option(input: TokenStream) -> TokenStream {
 
     for field in &fields {
         let mut found = true;
+
         for attr in &field.attrs {
             if attr.path().is_ident("optionable") {
                 if let Meta::List(meta_list) = &attr.meta {
-                    for nested_meta in meta_list.tokens.clone().into_token_stream() {
-                        if let TokenTree::Ident(ident) = nested_meta {
-                            if ident == "avoid" {
-                                found = false
-                            };
+                    let tokens = meta_list
+                        .tokens
+                        .clone()
+                        .into_token_stream()
+                        .into_iter()
+                        .collect::<Vec<TokenTree>>();
+                    if tokens.len() != 1 {
+                        panic!("optionable attribute has to only one argument")
+                    }
+
+                    if let TokenTree::Ident(ident) = &tokens[0] {
+                        let ident = ident.to_string();
+                        match ident.as_str() {
+                            "skip" => {
+                                found = false;
+                            }
+                            _ => panic!("invalid optionable attribute: {ident}"),
                         }
+                    } else {
+                        panic!(
+                            "optionable attribute has to be an ident, found {}",
+                            tokens[0]
+                        )
                     }
                 }
             }
@@ -267,9 +267,18 @@ pub fn derive_option(input: TokenStream) -> TokenStream {
         if found {
             let ident = &field.ident;
             let ty = &field.ty;
-            opt_fields.push(quote! {
-                pub #ident: Option<#ty>
-            });
+
+            let is_ty_option = get_inner_type_if_option(ty);
+
+            if let Some(ty) = is_ty_option {
+                opt_fields.push(quote! {
+                    pub #ident: ::rhaki_cw_plus::utils::UpdateOption<#ty>
+                })
+            } else {
+                opt_fields.push(quote! {
+                    pub #ident: Option<#ty>
+                })
+            };
         }
     }
 
@@ -283,6 +292,116 @@ pub fn derive_option(input: TokenStream) -> TokenStream {
 
     TokenStream::from(expanded)
 }
+
+// --- Smaller Twin ---
+
+/// Create another `Struct` where some fields can be skipped.
+///
+/// `smaller_twin` attribute has to be provided before the `Struct` definition, with the following attributes:
+/// - *(required)*`name`: the name of the `Struct` to be created;
+/// - *(optional)*`derive`: the derives to be added to the `Struct`: ex: `derive(Clone, Debug)`;
+/// - *(optional)*`attributes`: the attributes to be added to the `Struct`: ex: `attribute(cw_serde)`.
+///
+/// On each fiels of the `Struct`, is possible to use the `optionable` attribute as:
+/// - `#[smaller_twin(skip)]`: skip the field from the `Struct`.
+//////
+/// ## **Example**:
+///
+/// ```
+/// use crate::SmallerTwin;
+/// use cosmwasm_schema::cw_serde;
+///
+/// #[derive(SmallerTwin)]
+/// #[smaller_twin(name = UpdateConfig, attributes(cw_serde))]
+/// pub struct Config {
+///     pub foo: String,
+///     #[smaller_twin(skip)]
+///     pub bar: u64,
+/// }
+///
+/// let update_config = UpdateConfig {
+///    foo: "foo".to_string()
+/// };
+/// ```
+#[proc_macro_derive(SmallerTwin, attributes(smaller_twin))]
+pub fn derive_smaller_twin(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let attribute =
+        get_attr("smaller_twin", &input.attrs).expect("smaller_twin attribute not found");
+    let name_ident = get_attr_by_ident(&attribute, "name", 2).expect("name attribute not found");
+
+    let (derives, attributes) = get_derives_and_attributes(&attribute);
+
+    let name = if let TokenTree::Ident(name_ident) = name_ident {
+        name_ident
+    } else {
+        panic!("name attribute is not ident: {name_ident:#?}")
+    };
+
+    let fields = if let syn::Data::Struct(data) = input.data.clone() {
+        data.fields
+    } else {
+        panic!("not a struct");
+    };
+
+    let mut smaller_fields = vec![];
+
+    for field in &fields {
+        let mut found = true;
+
+        for attr in &field.attrs {
+            if attr.path().is_ident("smaller_twin") {
+                if let Meta::List(meta_list) = &attr.meta {
+                    let tokens = meta_list
+                        .tokens
+                        .clone()
+                        .into_token_stream()
+                        .into_iter()
+                        .collect::<Vec<TokenTree>>();
+                    if tokens.len() != 1 {
+                        panic!("smaller_twin attribute has to only one argument")
+                    }
+
+                    if let TokenTree::Ident(ident) = &tokens[0] {
+                        let ident = ident.to_string();
+                        match ident.as_str() {
+                            "skip" => {
+                                found = false;
+                            }
+
+                            _ => panic!("invalid smaller_twin attribute: {ident}"),
+                        }
+                    } else {
+                        panic!(
+                            "optionable attribute has to be an ident, found {}",
+                            tokens[0]
+                        )
+                    }
+                }
+            }
+        }
+
+        if found {
+            let ident = &field.ident;
+            let ty = &field.ty;
+            smaller_fields.push(quote! {
+                pub #ident: #ty
+            })
+        }
+    }
+
+    let expanded = quote! {
+        #[derive(#(#derives),*)]
+        #(#[#attributes]),*
+        pub struct #name {
+            #(#smaller_fields),*
+        }
+    };
+
+    TokenStream::from(expanded)
+}
+
+// --- Utils ---
 
 fn get_attr_by_ident(attr: &Attribute, ident_name: &str, after: usize) -> Option<TokenTree> {
     if let Meta::List(list) = &attr.meta {
@@ -308,4 +427,49 @@ fn get_attr_by_ident(attr: &Attribute, ident_name: &str, after: usize) -> Option
     } else {
         None
     }
+}
+
+fn get_inner_type_if_option(ty: &Type) -> Option<&Type> {
+    if let Type::Path(TypePath { path, .. }) = ty {
+        if let Some(segment) = path.segments.first() {
+            if segment.ident == "Option" {
+                if let PathArguments::AngleBracketed(angle_bracketed_args) = &segment.arguments {
+                    if let Some(GenericArgument::Type(inner_type)) =
+                        angle_bracketed_args.args.first()
+                    {
+                        return Some(inner_type);
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+fn get_derives_and_attributes(attr: &Attribute) -> (Vec<Ident>, Vec<Ident>) {
+    let mut derives = vec![];
+
+    if let Some(derive_ident) = get_attr_by_ident(&attr, "derive", 1) {
+        if let TokenTree::Group(group) = derive_ident {
+            for dev in group.stream().into_iter() {
+                if let TokenTree::Ident(ident) = dev {
+                    derives.push(ident);
+                }
+            }
+        }
+    }
+
+    let mut attributes = vec![];
+
+    if let Some(attrs) = get_attr_by_ident(&attr, "attributes", 1) {
+        if let TokenTree::Group(group) = attrs {
+            for dev in group.stream().into_iter() {
+                if let TokenTree::Ident(ident) = dev {
+                    attributes.push(ident);
+                }
+            }
+        }
+    }
+
+    (derives, attributes)
 }

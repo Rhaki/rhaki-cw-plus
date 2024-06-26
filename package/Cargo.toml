@@ -15,7 +15,7 @@ osmosis             = ["multi-test", "dep:osmosis-std", "dep:prost"]
 injective           = ["multi-test", "dep:injective-std", "dep:prost"]
 
 [dependencies]
-rhaki-cw-plus-macro = { path = "../macros", version = "0.3.1" }
+rhaki-cw-plus-macro = { path = "../macros", version = "0.3.2" }
 cw-storage-plus     = { workspace = true, features = ["macro"] }
 cosmwasm-std        = { workspace = true }
 cosmwasm-schema     = { workspace = true }
