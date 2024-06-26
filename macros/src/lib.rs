@@ -304,7 +304,7 @@ pub fn derive_option(input: TokenStream) -> TokenStream {
 ///
 /// On each fiels of the `Struct`, is possible to use the `optionable` attribute as:
 /// - `#[smaller_twin(skip)]`: skip the field from the `Struct`.
-//////
+///
 /// ## **Example**:
 ///
 /// ```
