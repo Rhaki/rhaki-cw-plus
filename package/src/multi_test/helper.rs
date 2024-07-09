@@ -1,6 +1,4 @@
-pub use anyhow;
 use cw20::MinterResponse;
-pub use cw_multi_test;
 
 use std::{
     fmt::{self, Debug, Display},
@@ -26,6 +24,9 @@ use crate::{
     asset::{AssetInfoPrecisioned, AssetPrecisioned},
     traits::{IntoAddr, IntoStdResult, Wrapper},
 };
+
+pub use anyhow;
+pub use cw_multi_test;
 
 pub type Bech32App = App<BankKeeper, MockApiBech32>;
 

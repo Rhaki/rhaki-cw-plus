@@ -1,37 +1,30 @@
-use crate::multi_test::helper::cw_multi_test::error::AnyResult;
-use crate::multi_test::multi_stargate_module::Itemable;
-use crate::multi_test::multi_stargate_module::StargateApplication;
-use crate::multi_test::{multi_stargate_module::StargateUrls, router::RouterWrapper};
-use crate::storage::interfaces::ItemInterface;
-use crate::traits::IntoAddr;
-use crate::traits::IntoBinary;
-use anyhow::anyhow;
-use anyhow::bail;
-use cosmwasm_schema::cw_serde;
-use cosmwasm_std::BankMsg;
-use cosmwasm_std::Coin;
-use cosmwasm_std::CosmosMsg;
-use cosmwasm_std::Empty;
-use cosmwasm_std::Uint128;
-use cosmwasm_std::{Addr, Api, Binary, BlockInfo, Querier, Storage};
-
-use cw_multi_test::AppResponse;
-use cw_multi_test::BankSudo;
-use cw_multi_test::SudoMsg;
-
-use injective_std::types::cosmos::bank::v1beta1::Metadata;
-use injective_std::types::injective::tokenfactory::v1beta1::MsgBurn;
-use injective_std::types::injective::tokenfactory::v1beta1::MsgChangeAdmin;
-use injective_std::types::injective::tokenfactory::v1beta1::MsgCreateDenom;
-use injective_std::types::injective::tokenfactory::v1beta1::MsgCreateDenomResponse;
-use injective_std::types::injective::tokenfactory::v1beta1::MsgMint;
-use injective_std::types::injective::tokenfactory::v1beta1::MsgSetDenomMetadata;
-use injective_std::types::injective::tokenfactory::v1beta1::Params;
-use injective_std::types::injective::tokenfactory::v1beta1::QueryParamsResponse;
-use prost::Message;
-use rhaki_cw_plus_macro::{urls, Stargate};
-use std::collections::BTreeMap;
-use std::{cell::RefCell, rc::Rc, str::FromStr};
+use {
+    crate::{
+        multi_test::{
+            helper::cw_multi_test::error::AnyResult,
+            multi_stargate_module::{Itemable, StargateApplication, StargateUrls},
+            router::RouterWrapper,
+        },
+        storage::interfaces::ItemInterface,
+        traits::{IntoAddr, IntoBinary},
+    },
+    anyhow::{anyhow, bail},
+    cosmwasm_schema::cw_serde,
+    cosmwasm_std::{
+        Addr, Api, BankMsg, Binary, BlockInfo, Coin, CosmosMsg, Empty, Querier, Storage, Uint128,
+    },
+    cw_multi_test::{AppResponse, BankSudo, SudoMsg},
+    injective_std::types::{
+        cosmos::bank::v1beta1::Metadata,
+        injective::tokenfactory::v1beta1::{
+            MsgBurn, MsgChangeAdmin, MsgCreateDenom, MsgCreateDenomResponse, MsgMint,
+            MsgSetDenomMetadata, Params, QueryParamsResponse,
+        },
+    },
+    prost::Message,
+    rhaki_cw_plus_macro::{urls, Stargate},
+    std::{cell::RefCell, collections::BTreeMap, rc::Rc, str::FromStr},
+};
 
 #[cw_serde]
 pub struct TokenFactoryFee {
@@ -87,25 +80,25 @@ impl StargateApplication for TokenFactoryModule {
                 let coin = msg.amount.ok_or(anyhow!("amount not found"))?;
 
                 self.run_msg_mint(router, sender, coin.denom, Uint128::from_str(&coin.amount)?)
-            }
+            },
             TokenFactoryMsgUrls::MsgCreateDenom => {
                 let msg = MsgCreateDenom::decode(data.as_slice())?;
                 self.run_create_denom(router, sender, msg)
-            }
+            },
             TokenFactoryMsgUrls::MsgBurn => {
                 let msg = MsgBurn::decode(data.as_slice())?;
                 let coin = msg.amount.ok_or(anyhow!("amount not found"))?;
 
                 self.run_burn_denom(router, sender, coin.denom, Uint128::from_str(&coin.amount)?)
-            }
+            },
             TokenFactoryMsgUrls::MsgSetDenomMetadata => {
                 let msg = MsgSetDenomMetadata::decode(data.as_slice())?;
                 self.run_set_denom_metadata(sender, msg)
-            }
+            },
             TokenFactoryMsgUrls::MsgChangeAdmin => {
                 let msg = MsgChangeAdmin::decode(data.as_slice())?;
                 self.run_change_admin(api, sender, msg)
-            }
+            },
         }
     }
 
@@ -286,13 +279,19 @@ impl TokenFactoryModule {
 
 #[cfg(test)]
 mod test {
-    use crate::asset::AssetInfoPrecisioned;
-    use crate::math::IntoDecimal;
-    use crate::multi_test::helper::{AppExt, Bench32AppExt, UnwrapError};
-    use crate::multi_test::multi_stargate_module::{multi_stargate_app, ModuleDb};
-    use cosmwasm_std::Coin;
-    use cw_multi_test::Executor;
-    use injective_std::types::injective::tokenfactory::v1beta1::MsgCreateDenom;
+    use {
+        crate::{
+            asset::AssetInfoPrecisioned,
+            math::IntoDecimal,
+            multi_test::{
+                helper::{AppExt, Bench32AppExt, UnwrapError},
+                multi_stargate_module::{multi_stargate_app, ModuleDb},
+            },
+        },
+        cosmwasm_std::Coin,
+        cw_multi_test::Executor,
+        injective_std::types::injective::tokenfactory::v1beta1::MsgCreateDenom,
+    };
 
     use super::{TokenFactoryFee, TokenFactoryModule};
 
