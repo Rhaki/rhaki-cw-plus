@@ -1,10 +1,11 @@
-use cosmwasm_std::{
-    instantiate2_address, to_json_binary, Addr, Binary, Coin, CosmosMsg, Deps, ReplyOn, StdError,
-    StdResult, SubMsg, WasmMsg,
+use {
+    crate::traits::IntoBinary,
+    cosmwasm_std::{
+        instantiate2_address, to_json_binary, Addr, Binary, Coin, CosmosMsg, Deps, ReplyOn,
+        StdError, StdResult, SubMsg, WasmMsg,
+    },
+    serde::Serialize,
 };
-use serde::Serialize;
-
-use crate::traits::IntoBinary;
 
 pub fn generate_instantiate_2_addr(
     deps: Deps,

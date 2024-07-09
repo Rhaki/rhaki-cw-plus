@@ -1,5 +1,8 @@
-use base64::{engine::general_purpose::STANDARD, DecodeError, Engine};
-use cosmwasm_std::{StdError, StdResult};
+use {
+    crate::traits::IntoStdResult,
+    base64::{engine::general_purpose::STANDARD, Engine},
+    cosmwasm_std::{StdError, StdResult},
+};
 
 /// Encode a `&str` in `base64` and return `String`
 pub fn base64_encode(decoded: &str) -> String {
@@ -7,8 +10,8 @@ pub fn base64_encode(decoded: &str) -> String {
 }
 
 // Decode a `&str` in `base64` and return `Vec<u8>`
-pub fn base64_decode(encoded: &str) -> Result<Vec<u8>, DecodeError> {
-    STANDARD.decode(encoded.as_bytes())
+pub fn base64_decode(encoded: &str) -> StdResult<Vec<u8>> {
+    STANDARD.decode(encoded.as_bytes()).into_std_result()
 }
 
 /// Decode a `&str` in `base64` and return `String`

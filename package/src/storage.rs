@@ -1,11 +1,12 @@
-use std::{cmp::min, fmt::Debug};
-
-use cosmwasm_schema::{
-    cw_serde,
-    serde::{de::DeserializeOwned, Serialize},
+use {
+    cosmwasm_schema::{
+        cw_serde,
+        serde::{de::DeserializeOwned, Serialize},
+    },
+    cosmwasm_std::{Order, StdError, StdResult, Storage},
+    cw_storage_plus::{Bound, KeyDeserialize, Map, MultiIndex, Prefixer, PrimaryKey, UniqueIndex},
+    std::{cmp::min, fmt::Debug},
 };
-use cosmwasm_std::{Order, StdError, StdResult, Storage};
-use cw_storage_plus::{Bound, KeyDeserialize, Map, MultiIndex, Prefixer, PrimaryKey, UniqueIndex};
 
 const DEFAULT_LIMIT: u32 = 10;
 const MAX_LIMIT: u32 = 30;

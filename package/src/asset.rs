@@ -1,17 +1,18 @@
-use std::{any::type_name, collections::HashMap, fmt::Display};
-
-use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{
-    to_json_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, StdError, StdResult, Uint128, WasmMsg,
-};
-use cw_asset::{Asset, AssetError, AssetInfo};
-use cw_storage_plus::{Key, KeyDeserialize, Prefixer, PrimaryKey};
-use serde::Serialize;
-
-use crate::{
-    math::IntoDecimal,
-    traits::{IntoBinary, IntoStdResult, Wrapper},
-    wasm::WasmMsgBuilder,
+use {
+    crate::{
+        math::IntoDecimal,
+        traits::{IntoBinary, IntoStdResult, Wrapper},
+        wasm::WasmMsgBuilder,
+    },
+    cosmwasm_schema::cw_serde,
+    cosmwasm_std::{
+        to_json_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, StdError, StdResult, Uint128,
+        WasmMsg,
+    },
+    cw_asset::{Asset, AssetError, AssetInfo},
+    cw_storage_plus::{Key, KeyDeserialize, Prefixer, PrimaryKey},
+    serde::Serialize,
+    std::{any::type_name, collections::HashMap, fmt::Display},
 };
 
 /// Check if `coins` has a `len() == 1`.

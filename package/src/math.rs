@@ -1,16 +1,16 @@
-use std::{
-    fmt::{Debug, Display},
-    ops::{Add, Div, Mul, Neg, Sub},
-    str::FromStr,
+use {
+    crate::traits::{IntoStdResult, Wrapper},
+    cosmwasm_std::{
+        CheckedFromRatioError, Decimal, Decimal256, StdError, StdResult, Uint128, Uint256,
+    },
+    forward_ref::forward_ref_binop,
+    pyth_sdk_cw::PriceFeedResponse,
+    std::{
+        fmt::{Debug, Display},
+        ops::{Add, Div, Mul, Neg, Sub},
+        str::FromStr,
+    },
 };
-
-use cosmwasm_std::{
-    CheckedFromRatioError, Decimal, Decimal256, StdError, StdResult, Uint128, Uint256,
-};
-use forward_ref::forward_ref_binop;
-use pyth_sdk_cw::PriceFeedResponse;
-
-use crate::traits::{IntoStdResult, Wrapper};
 
 pub trait IntoUint {
     fn into_uint128(self) -> Uint128;

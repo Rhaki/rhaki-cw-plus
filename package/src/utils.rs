@@ -1,7 +1,8 @@
-use std::{collections::HashMap, fmt::Debug, hash::Hash};
-
-use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{StdError, StdResult};
+use {
+    cosmwasm_schema::cw_serde,
+    cosmwasm_std::{StdError, StdResult},
+    std::{collections::HashMap, fmt::Debug, hash::Hash},
+};
 
 /// Transform a `Vec<T>` into `HashMap<uszie, T>`, where `key` is the index of `T`
 pub fn vec_to_i_hashmap<T>(vec: Vec<T>) -> HashMap<usize, T> {

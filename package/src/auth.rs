@@ -1,22 +1,24 @@
-use cosmwasm_std::{Addr, StdError, StdResult, Storage};
-use cw_storage_plus::Item;
+use {
+    cosmwasm_std::{Addr, StdError, StdResult, Storage},
+    cw_storage_plus::Item,
+};
 
-const OWENR_KEY: &str = "rhaki-cw-plus-owner";
+const OWNER: Item<Addr> = Item::new("owner");
 
 pub fn set_owner(storage: &mut dyn Storage, owner: &Addr) -> StdResult<()> {
-    Item::<Addr>::new(OWENR_KEY).save(storage, owner)?;
+    OWNER.save(storage, owner)?;
     Ok(())
 }
 
 pub fn get_owner(storage: &mut dyn Storage) -> Option<Addr> {
-    match Item::<Addr>::new(OWENR_KEY).load(storage) {
+    match OWNER.load(storage) {
         Ok(owner) => Some(owner),
         Err(_) => None,
     }
 }
 
 pub fn assert_owner(storage: &mut dyn Storage, owner: &Addr) -> StdResult<()> {
-    match Item::<Addr>::new(OWENR_KEY).load(storage) {
+    match OWNER.load(storage) {
         Ok(saved) => {
             if saved == owner {
                 Ok(())

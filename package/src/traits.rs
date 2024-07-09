@@ -1,7 +1,8 @@
-use std::{cmp::min, error::Error};
-
-use cosmwasm_std::{from_json, to_json_binary, Addr, Api, Binary, StdError, StdResult};
-use serde::{de::DeserializeOwned, Serialize};
+use {
+    cosmwasm_std::{from_json, to_json_binary, Addr, Api, Binary, StdError, StdResult},
+    serde::{de::DeserializeOwned, Serialize},
+    std::{cmp::min, error::Error},
+};
 
 pub trait IntoAddr: Into<String> + Clone {
     fn into_addr(self, api: &dyn Api) -> StdResult<Addr> {

@@ -1,12 +1,12 @@
-use anyhow::anyhow;
-use std::path::PathBuf;
-
-use async_trait::async_trait;
-use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Decimal;
-use serde::{de::DeserializeOwned, Serialize};
-
-use crate::math::IntoDecimal;
+use {
+    crate::math::IntoDecimal,
+    anyhow::anyhow,
+    async_trait::async_trait,
+    cosmwasm_schema::cw_serde,
+    cosmwasm_std::Decimal,
+    serde::{de::DeserializeOwned, Serialize},
+    std::path::PathBuf,
+};
 
 pub use cosmos_grpc_client;
 pub use tokio;
