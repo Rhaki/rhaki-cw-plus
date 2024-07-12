@@ -30,7 +30,7 @@ pub fn only_one_coin(coins: &Vec<Coin>, denom: Option<String>) -> StdResult<Coin
                         coin.denom, denom
                     )))
                 }
-            }
+            },
             None => Ok(coin),
         }
     } else {
@@ -45,36 +45,49 @@ pub fn only_one_coin(coins: &Vec<Coin>, denom: Option<String>) -> StdResult<Coin
 /// - `from: Some` - `with: None` -> Return `from`
 /// - `from: None` - `with: Some` -> Return `with`
 /// - `from: Some` - `with: Some` -> Return `Coin:{denom: from.denom, amount: from.amount + with.amount}`
-pub fn merge_coin(from: &Option<Coin>, with: &Option<Coin>) -> StdResult<Option<Coin>> {
-    match from {
-        Some(from) => match with {
-            Some(with) => {
-                if from.denom != with.denom {
-                    return Err(StdError::generic_err("Coin must have same denom"));
-                }
-                Ok(Some(Coin {
-                    denom: from.denom.clone(),
-                    amount: from.amount + with.amount,
-                }))
+pub fn merge_coin(from: Option<Coin>, with: Option<Coin>) -> StdResult<Option<Coin>> {
+    match (from, with) {
+        (None, None) => Ok(None),
+        (None, Some(with)) => Ok(Some(with)),
+        (Some(from), None) => Ok(Some(from)),
+        (Some(from), Some(with)) => {
+            if from.denom != with.denom {
+                return Err(StdError::generic_err("Coin must have same denom"));
             }
-            None => Ok(Some(from.to_owned())),
+            Ok(Some(Coin {
+                denom: from.denom.clone(),
+                amount: from.amount + with.amount,
+            }))
         },
-        None => Ok(with.to_owned()),
     }
 }
 
 /// Transform a `Vec<Coin>` into `HashMap<String, Uint128>`
-pub fn vec_coins_to_hashmap(coins: Vec<Coin>) -> StdResult<HashMap<String, Uint128>> {
+///
+/// if merge_dupplicate is `true`, the function will sum the amount of the same denom
+/// otherwise it will return an error if a denom is found multiple times
+pub fn vec_coins_to_hashmap(
+    coins: Vec<Coin>,
+    merge_dupplicate: bool,
+) -> StdResult<HashMap<String, Uint128>> {
     let mut map: HashMap<String, Uint128> = HashMap::new();
 
     for coin in coins {
-        if map.contains_key(&coin.denom) {
-            return Err(StdError::generic_err(format!(
-                "multiple denom detected, {}",
-                &coin.denom
-            )));
+        match map.get_mut(&coin.denom) {
+            Some(alredy_inserted) => {
+                if merge_dupplicate {
+                    *alredy_inserted += coin.amount;
+                } else {
+                    return Err(StdError::generic_err(format!(
+                        "multiple denom detected, {}",
+                        &coin.denom
+                    )));
+                }
+            },
+            None => {
+                map.insert(coin.denom, coin.amount);
+            },
         }
-        map.insert(coin.denom, coin.amount);
     }
 
     Ok(map)
@@ -179,7 +192,7 @@ impl AssetInfoPrecisioned {
                 } else {
                     AssetInfo::Native(String::from(words[1])).wrap_ok()
                 }
-            }
+            },
             "cw20" => {
                 if words.len() != 2 {
                     Err(AssetError::InvalidAssetInfoFormat {
@@ -189,7 +202,7 @@ impl AssetInfoPrecisioned {
                 } else {
                     AssetInfo::Cw20(Addr::unchecked(words[1])).wrap_ok()
                 }
-            }
+            },
             ty => Err(AssetError::InvalidAssetType { ty: ty.into() }),
         }
         .into_std_result()?;
@@ -224,11 +237,11 @@ impl<'a> PrimaryKey<'a> for AssetInfoPrecisioned {
             AssetInfo::Cw20(addr) => {
                 keys.extend("cw20:".key());
                 keys.extend(addr.key());
-            }
+            },
             AssetInfo::Native(denom) => {
                 keys.extend("native:".key());
                 keys.extend(denom.key());
-            }
+            },
             _ => todo!(),
         };
         // keys.extend(format!(":precision:{}", self.precision).key());
@@ -327,7 +340,7 @@ impl AssetPrecisioned {
         match self.info() {
             AssetInfo::Native(_) => {
                 WasmMsg::build_execute(contract_addr, native_msg, vec![self.clone().try_into()?])
-            }
+            },
             AssetInfo::Cw20(addr) => WasmMsg::build_execute(
                 addr,
                 cw20::Cw20ExecuteMsg::Send {
@@ -392,7 +405,7 @@ impl TryInto<Coin> for AssetPrecisioned {
         match self.info() {
             cw_asset::AssetInfoBase::Native(denom) => {
                 Coin::new(self.amount_raw().u128(), denom).wrap_ok()
-            }
+            },
             cw_asset::AssetInfoBase::Cw20(addr) => Err(StdError::generic_err(format!(
                 "Cannot convert {} into Coin",
                 addr
@@ -427,7 +440,7 @@ impl AssetAmount {
             AssetAmount::Precisioned(amount) => Ok(*amount),
             AssetAmount::Precisionless(amount) => {
                 Decimal::from_atomics(*amount, precision as u32).into_std_result()
-            }
+            },
         }
     }
 
@@ -614,6 +627,7 @@ mod math {
 
     impl Div for AssetPrecisioned {
         type Output = Self;
+
         fn div(self, rhs: Self) -> Self::Output {
             validate_asset(&self.info, &rhs.info, "Div").unwrap();
             let amount = self.amount_raw();

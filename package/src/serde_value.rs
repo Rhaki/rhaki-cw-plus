@@ -11,8 +11,7 @@ use {
 
 pub use {
     serde_cw_value::Value,
-    serde_json::json,
-    serde_json::Value as StdValue,
+    serde_json::{json, Value as StdValue},
     serde_json_wasm::{from_str as sjw_from_str, to_string as sjw_to_string, to_vec as sjw_to_vec},
 };
 
@@ -24,22 +23,17 @@ pub enum PathKey {
 
 /// `Serialize` a `serde_cw_value::Value` to `String`
 pub fn value_to_string(value: &Value) -> StdResult<String> {
-    match sjw_to_string(&value) {
-        Ok(v) => Ok(v),
-        Err(err) => Err(StdError::generic_err(err.to_string())),
-    }
+    sjw_to_string(&value).into_std_result()
 }
 
 /// `Deserialize` a `String` into `serde_cw_value::Value`
 pub fn value_from_string(string: &str) -> StdResult<Value> {
-    match serde_json_wasm::from_slice(
+    serde_json_wasm::from_slice(
         serde_json_wasm::to_vec(string)
             .into_std_result()?
             .as_slice(),
-    ) {
-        Ok(v) => Ok(v),
-        Err(err) => Err(StdError::generic_err(err.to_string())),
-    }
+    )
+    .into_std_result()
 }
 
 /// `Deserialize` a `String` in `base64` into `serde_cw_value::Value`
@@ -53,16 +47,12 @@ pub fn value_to_b64_string(value: &Value) -> StdResult<String> {
 
 /// Parse a `serde_json::Value` into `serde_json_wasm::Value`
 pub fn std_to_sjw_value(std_value: StdValue) -> StdResult<Value> {
-    sjw_from_str::<Value>(&std_value.to_string())
-        .map_err(|err| StdError::generic_err(err.to_string()))
+    sjw_from_str::<Value>(&std_value.to_string()).into_std_result()
 }
 
 /// Parse a `Value` into a CosmosMsg
 pub fn value_to_comsos_msg(value: &Value) -> StdResult<CosmosMsg> {
-    match value.clone().deserialize_into() {
-        Ok(msg) => Ok(msg),
-        Err(err) => Err(StdError::generic_err(err.to_string())),
-    }
+    value.clone().deserialize_into().into_std_result()
 }
 
 pub trait SerdeValue {

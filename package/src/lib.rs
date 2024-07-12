@@ -8,10 +8,7 @@ pub mod traits;
 pub mod utils;
 pub mod wasm;
 
-pub use cw_asset;
-pub use rhaki_cw_plus_macro::*;
-
-pub use serde as _serde;
+pub use {cw_asset, rhaki_cw_plus_macro::*, serde as _serde};
 
 #[cfg(feature = "multi-test")]
 pub use strum;

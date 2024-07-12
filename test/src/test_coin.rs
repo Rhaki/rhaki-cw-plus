@@ -1,6 +1,8 @@
-use cosmwasm_std::{testing::mock_dependencies, Coin, Uint128};
-use cw_storage_plus::Map;
-use rhaki_cw_plus::asset::{merge_coin, only_one_coin, AssetInfoPrecisioned};
+use {
+    cosmwasm_std::{testing::mock_dependencies, Coin, Uint128},
+    cw_storage_plus::Map,
+    rhaki_cw_plus::asset::{merge_coin, only_one_coin, AssetInfoPrecisioned},
+};
 
 #[test]
 fn main() {
@@ -19,31 +21,28 @@ fn main() {
 
     only_one_coin(&vec![coin.clone()], Some("rand".to_string())).unwrap_err();
 
-    assert!(merge_coin(&None, &None).unwrap().is_none(), "{}", true);
+    assert!(merge_coin(None, None).unwrap().is_none(), "{}", true);
 
-    let res = merge_coin(&Some(coin.clone()), &None).unwrap().unwrap();
-
-    assert_eq!(res, coin);
-
-    let res = merge_coin(&None, &Some(coin.clone())).unwrap().unwrap();
+    let res = merge_coin(Some(coin.clone()), None).unwrap().unwrap();
 
     assert_eq!(res, coin);
 
-    let res = merge_coin(&Some(coin.clone()), &Some(coin.clone()))
+    let res = merge_coin(None, Some(coin.clone())).unwrap().unwrap();
+
+    assert_eq!(res, coin);
+
+    let res = merge_coin(Some(coin.clone()), Some(coin.clone()))
         .unwrap()
         .unwrap();
 
-    assert_eq!(
-        res,
-        Coin {
-            denom: coin.clone().denom,
-            amount: coin.amount * Uint128::from(2_u128)
-        }
-    );
+    assert_eq!(res, Coin {
+        denom: coin.clone().denom,
+        amount: coin.amount * Uint128::from(2_u128)
+    });
 
     merge_coin(
-        &Some(coin),
-        &Some(Coin {
+        Some(coin),
+        Some(Coin {
             denom: "rand".to_string(),
             amount: Uint128::one(),
         }),
