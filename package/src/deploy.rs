@@ -8,8 +8,7 @@ use {
     std::path::PathBuf,
 };
 
-pub use cosmos_grpc_client;
-pub use tokio;
+pub use {cosmos_grpc_client, tokio};
 
 pub type AnyResult<T> = anyhow::Result<T>;
 
@@ -96,6 +95,7 @@ impl ChainInfoNoSeed {
             self.chain_name
         )
     }
+
     pub fn into_chain_info(self, seed_phrase: String) -> ChainInfo {
         ChainInfo {
             seed_phrase,
@@ -313,20 +313,22 @@ impl Into<&str> for NetType {
 pub mod functions {
     use std::str::from_utf8;
 
-    use anyhow::{anyhow, bail};
-    use cosmos_grpc_client::{
-        cosmos_sdk_proto::{
-            cosmos::{
-                base::v1beta1::Coin,
-                tx::v1beta1::{GetTxRequest, GetTxResponse},
+    use {
+        anyhow::{anyhow, bail},
+        cosmos_grpc_client::{
+            cosmos_sdk_proto::{
+                cosmos::{
+                    base::v1beta1::Coin,
+                    tx::v1beta1::{GetTxRequest, GetTxResponse},
+                },
+                cosmwasm::wasm::v1::{AccessConfig, MsgInstantiateContract, MsgStoreCode},
+                prost::Name,
             },
-            cosmwasm::wasm::v1::{AccessConfig, MsgInstantiateContract, MsgStoreCode},
-            prost::Name,
+            AnyBuilder, BroadcastMode, GrpcClient, Wallet,
         },
-        AnyBuilder, BroadcastMode, GrpcClient, Wallet,
+        cosmwasm_std::{to_json_binary, Coin as StdCoin, StdError, StdResult},
+        serde::Serialize,
     };
-    use cosmwasm_std::{to_json_binary, Coin as StdCoin, StdError, StdResult};
-    use serde::Serialize;
 
     use crate::traits::IntoStdResult;
 
@@ -368,6 +370,10 @@ pub mod functions {
         let res = wallet
             .broadcast_tx(vec![msg], None, None, BroadcastMode::Sync)
             .await?;
+
+        if res.tx_response.as_ref().unwrap().code != 0 {
+            bail!("Error: {}", res.tx_response.unwrap().raw_log)
+        }
 
         let response = search_tx(&wallet.client, res.tx_response.unwrap().txhash, Some(10))
             .await
